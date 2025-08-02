@@ -8,9 +8,13 @@ import re
 # === Telegram credentials from environment variables ===
 api_id = int(os.getenv('TELEGRAM_API_ID', '24066461'))
 api_hash = os.getenv('TELEGRAM_API_HASH', '04d2e7ce7a20d9737960e6a69b736b4a')
-phone_number = os.getenv('TELEGRAM_PHONE', '+61404319634')
+session_string = os.getenv('TELEGRAM_SESSION')
 
-client = TelegramClient("bitfoot_scraper", api_id, api_hash)
+# Use session string for production, fallback to file for local dev
+if session_string:
+    client = TelegramClient(session_string, api_id, api_hash)
+else:
+    client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
 # === Logging + Forwarding ===
 @client.on(events.NewMessage(chats="bitfootpings"))
@@ -28,8 +32,11 @@ async def forward(event):
         # Extract all Solana contract addresses
         contracts = re.findall(r'\b[1-9A-HJ-NP-Za-km-z]{32,44}\b', msg_text)
         
-        if contracts:
-            for contract in contracts:
+        # Remove duplicates while preserving order
+        unique_contracts = list(dict.fromkeys(contracts))
+        
+        if unique_contracts:
+            for contract in unique_contracts:
                 await client.send_message("BITFOOTCAPARSER", f"📄 Solana Contract:\n`{contract}`")
                 print(f"✅ Sent contract: {contract}")
                 
@@ -65,7 +72,7 @@ def run_flask():
 # === Async main ===
 async def main():
     try:
-        await client.start(phone=phone_number)
+        await client.start()
         print("📡 Forwarding started: @bitfootpings → @BITFOOTCAPARSER")
         await client.run_until_disconnected()
     except Exception as e:
