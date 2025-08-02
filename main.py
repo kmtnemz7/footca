@@ -13,7 +13,7 @@ phone_number = os.getenv('TELEGRAM_PHONE', '+61404319634')
 client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
 # === Logging + Forwarding ===
-@client.on(events.NewMessage(chats="bitfootpings"))
+@client.on(events.NewMessage(chats=["bitfootpings"]))
 async def forward(event):
     try:
         msg = event.message
