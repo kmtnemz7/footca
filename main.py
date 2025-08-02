@@ -33,7 +33,7 @@ async def forward(event):
         
         if unique_contracts:
             for contract in unique_contracts:
-                await client.send_message("BITFOOTCAPARSER", f"📄 Solana Contract:\n`{contract}`")
+                await client.send_message("BITFOOTCAPARSER", f"CA Detected:\n`{contract}`")
                 print(f"✅ Sent contract: {contract}")
                 
                 # Save to log file
