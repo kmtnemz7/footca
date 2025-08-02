@@ -8,13 +8,9 @@ import re
 # === Telegram credentials from environment variables ===
 api_id = int(os.getenv('TELEGRAM_API_ID', '24066461'))
 api_hash = os.getenv('TELEGRAM_API_HASH', '04d2e7ce7a20d9737960e6a69b736b4a')
-session_string = os.getenv('TELEGRAM_SESSION')
+phone_number = os.getenv('TELEGRAM_PHONE', '+61404319634')
 
-# Use session string for production, fallback to file for local dev
-if session_string:
-    client = TelegramClient(session_string, api_id, api_hash)
-else:
-    client = TelegramClient("bitfoot_scraper", api_id, api_hash)
+client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
 # === Logging + Forwarding ===
 @client.on(events.NewMessage(chats="bitfootpings"))
@@ -72,7 +68,7 @@ def run_flask():
 # === Async main ===
 async def main():
     try:
-        await client.start()
+        await client.start(phone=phone_number)
         print("📡 Forwarding started: @bitfootpings → @BITFOOTCAPARSER")
         await client.run_until_disconnected()
     except Exception as e:
