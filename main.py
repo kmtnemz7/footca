@@ -64,7 +64,7 @@ async def send_log_file():
 async def status_message():
     while True:
         try:
-            await client.send_message(target_chat, "🔃 Logging calls...")
+            await client.send_message(target_chat, "**🔃 Logging calls...**")
             logger.info(f"Sent status message to {target_chat}")
         except ChatWriteForbiddenError:
             logger.error(f"Cannot send status message to {target_chat}: No write permission")
@@ -86,7 +86,7 @@ async def forward(event):
         if unique_contracts:
             for contract in unique_contracts:
                 try:
-                    await client.send_message(target_chat, f"CA Detected:\n{contract}")
+                    await client.send_message(target_chat, f"**🟢 CA Detected:**\n\n`{contract}`")
                     logger.info(f"CA Detected: {contract}")
                 except ChatWriteForbiddenError:
                     logger.error(f"Cannot send to {target_chat}: No write permission")
