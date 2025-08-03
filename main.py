@@ -13,21 +13,17 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.StreamHandler(),
         logging.FileHandler(log_file, mode="a", encoding="utf-8")
     ]
 )
 logger = logging.getLogger(__name__)
 
-logger.info(f"API_ID set: {'API_ID' in os.environ}")
-logger.info(f"API_HASH set: {'API_HASH' in os.environ}")
-logger.info(f"PHONE_NUMBER set: {'PHONE_NUMBER' in os.environ}")
-logger.info(f"PASSWORD set: {'PASSWORD' in os.environ}")
-
 api_id = os.getenv("API_ID", "24066461")
 api_hash = os.getenv("API_HASH", "04d2e7ce7a20d9737960e6a69b736b4a")
 phone_number = os.getenv("PHONE_NUMBER")
-chat_id = "@bitfootpings"
+source_chat = "@bitfootpings"
+target_chat = "@BITFOOTCAPARSER"
+phanes_bot = "@PhanesGoldBot"
 
 client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
@@ -47,8 +43,8 @@ async def send_log_file():
     while True:
         try:
             if os.path.exists(log_file) and os.path.getsize(log_file) > 0:
-                await client.send_file("BITFOOTCAPARSER", log_file, caption="Log file")
-                logger.info("Sent log file to @BITFOOTCAPARSER")
+                await client.send_file(target_chat, log_file, caption="Phanes Responses")
+                logger.info(f"Sent log file to {target_chat}")
             else:
                 logger.info("Log file empty or missing, skipping send")
         except TypeNotFoundError as e:
@@ -57,39 +53,38 @@ async def send_log_file():
             logger.error(f"Error sending log file: {e}")
         await asyncio.sleep(600)
 
-async def heartbeat():
+async def status_message():
     while True:
-        logger.info("Heartbeat: Scraper is running")
-        await asyncio.sleep(300)
+        try:
+            await client.send_message(target_chat, "🔃 Logging calls...")
+            logger.info(f"Sent status message to {target_chat}")
+        except ChatWriteForbiddenError:
+            logger.error(f"Cannot send status message to {target_chat}: No write permission")
+        except TypeNotFoundError as e:
+            logger.error(f"TypeNotFoundError sending status message: {e}. Skipping.")
+        except Exception as e:
+            logger.error(f"Error sending status message: {e}")
+        await asyncio.sleep(60)
 
-@client.on(events.NewMessage(chats=chat_id))
+@client.on(events.NewMessage(chats=source_chat))
 async def forward(event):
     try:
         msg = event.message
         msg_text = msg.raw_text or ""
-        logger.info(f"New message | Time: {msg.date} | From: {msg.chat.username or msg.chat.id} | Type: {'Text' if msg.text else 'Non-text'} | Content: {msg_text}")
-        
         contracts = re.findall(r'[1-9A-HJ-NP-Za-km-z]{32,44}', msg_text)
-        logger.info(f"Regex matches: {contracts}")
-        
         unique_contracts = list(dict.fromkeys(contracts))
         
         if unique_contracts:
             for contract in unique_contracts:
                 try:
-                    await client.send_message("BITFOOTCAPARSER", f"CA Detected:\n{contract}")
-                    logger.info(f"Sent contract: {contract}")
-                    with open(log_file, "a", encoding="utf-8") as f:
-                        f.write(f"\n[{msg.date}] From: {msg.chat.username or msg.chat.id} → Contract: {contract}\n")
+                    await client.send_message(target_chat, f"CA Detected:\n{contract}")
+                    logger.info(f"CA Detected: {contract}")
                 except ChatWriteForbiddenError:
-                    logger.error("Cannot send to @BITFOOTCAPARSER: No write permission")
+                    logger.error(f"Cannot send to {target_chat}: No write permission")
                 except TypeNotFoundError as e:
                     logger.error(f"TypeNotFoundError sending contract {contract}: {e}. Skipping.")
                 except Exception as e:
                     logger.error(f"Error sending contract {contract}: {e}")
-            logger.info("-" * 40)
-        else:
-            logger.info("Skipped: No Solana address found")
     except TypeNotFoundError as e:
         logger.error(f"TypeNotFoundError processing message: {e}. Skipping.")
     except FloodWaitError as e:
@@ -97,6 +92,46 @@ async def forward(event):
         await asyncio.sleep(e.seconds)
     except Exception as e:
         logger.error(f"Message error: {e}")
+
+@client.on(events.NewMessage(chats=target_chat, from_users=phanes_bot))
+async def log_phanes_response(event):
+    try:
+        msg = event.message
+        msg_text = msg.raw_text or ""
+        if msg_text:
+            # Extract key information using regex
+            pattern = r'([\w\s]+)\s+\(\$([\w]+)\)\s+#(\d+)\s*\n├\s*([1-9A-HJ-NP-Za-km-z]{32,44})\n└\s*#SOL\s*\(Raydium\)\s*\|\s*([\d.]+)h\s*\|\s*([\d.]+)K\s*Token Stats\n\s*├\s*USD:\s*\$([\d.₄]+)\s*\(([-+]?[\d.]+)%\)\n\s*├\s*MC:\s*\$([\d.KM]+)\n\s*├\s*Vol:\s*\$([\d.KM]+)\n\s*├\s*LP:\s*\$([\d.KM]+)\n\s*├\s*Sup:\s*([\dB/]+)\n\s*├\s*1H:\s*([-+]?[\d.]+)%\s*🅑\s*(\d+)\s*Ⓢ\s*(\d+)\n\s*└\s*ATH:\s*\$([\d.KM]+)\s*\(([-+]?[\d.]+)%\s*/\s*(\d+)m\)\s*Security\n\s*├\s*Freshies:\s*([\d.]+)%\s*1D\s*\|\s*([\d.]+)%\s*7D\n\s*├\s*Top 10:\s*([\d.]+)%\s*\|\s*(\d+)\s*\(total\)\n\s*├\s*TH:\s*([\d.\s|]+)\n\s*├\s*Dev Sold:\s*(🟢|🔴)\s*\[\]\n\s*└\s*Dex Paid:\s*(🟢|🔴)'
+            match = re.search(pattern, msg_text)
+            if match:
+                token_name, ticker, rank, contract, age, views, usd, usd_change, mc, vol, lp, sup, change_1h, buyers, sellers, ath, ath_change, ath_time, freshies_1d, freshies_7d, top10_pct, top10_holders, th, dev_sold, dex_paid = match.groups()
+                dev_sold = "Yes" if dev_sold == "🟢" else "No"
+                dex_paid = "Yes" if dex_paid == "🟢" else "No"
+                formatted_response = (
+                    f"{token_name} (${ticker}) #{rank}\n"
+                    f"├ {contract}\n"
+                    f"└ #SOL (Raydium) | {age}h | {views}K Token Stats\n"
+                    f" ├ USD:  ${usd} ({usd_change}%)\n"
+                    f" ├ MC:   ${mc}\n"
+                    f" ├ Vol:  ${vol}\n"
+                    f" ├ LP:   ${lp}\n"
+                    f" ├ Sup:  {sup}\n"
+                    f" ├ 1H:   {change_1h}% 🅑 {buyers} Ⓢ {sellers}\n"
+                    f" └ ATH:  ${ath} ({ath_change}% / {ath_time}m) Security\n"
+                    f" ├ Freshies: {freshies_1d}% 1D | {freshies_7d}% 7D\n"
+                    f" ├ Top 10:   {top10_pct}% | {top10_holders} (total)\n"
+                    f" ├ TH:       {th}\n"
+                    f" ├ Dev Sold: {dev_sold}\n"
+                    f" └ Dex Paid: {dex_paid}"
+                )
+                logger.info(f"Phanes response: {formatted_response}")
+                with open(log_file, "a", encoding="utf-8") as f:
+                    f.write(f"[{msg.date}] Phanes Response:\n{formatted_response}\n\n")
+            else:
+                logger.info("No matching Phanes response format found")
+    except TypeNotFoundError as e:
+        logger.error(f"TypeNotFoundError processing Phanes response: {e}. Skipping.")
+    except Exception as e:
+        logger.error(f"Error processing Phanes response: {e}")
 
 async def main():
     try:
@@ -114,14 +149,15 @@ async def main():
         me = await client.get_me()
         logger.info(f"Authenticated as: {me.username or me.phone}")
         
-        entity = await resolve_chat(client, chat_id)
-        if not entity:
-            logger.error(f"Cannot proceed: Failed to access chat {chat_id}")
-            return
+        for chat in [source_chat, target_chat]:
+            entity = await resolve_chat(client, chat)
+            if not entity:
+                logger.error(f"Cannot proceed: Failed to access chat {chat}")
+                return
         
-        logger.info("Forwarding started: @bitfootpings → @BITFOOTCAPARSER")
+        logger.info(f"Forwarding started: {source_chat} → {target_chat}")
         asyncio.create_task(send_log_file())
-        asyncio.create_task(heartbeat())
+        asyncio.create_task(status_message())
         await client.run_until_disconnected()
     except SessionPasswordNeededError:
         logger.error("2FA required. Set PASSWORD env var")
