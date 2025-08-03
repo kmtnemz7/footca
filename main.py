@@ -1,6 +1,5 @@
 import os
 from telethon import TelegramClient, events
-from flask import Flask
 import threading
 import asyncio
 import re
