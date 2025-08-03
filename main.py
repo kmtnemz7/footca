@@ -1,165 +1,73 @@
 import os
+from telethon import TelegramClient, events
+from flask import Flask
+import threading
 import asyncio
 import re
-import logging
-import sys
-from telethon import TelegramClient, events
-from telethon.errors import FloodWaitError, SessionPasswordNeededError, RPCError, ChatWriteForbiddenError, TypeNotFoundError
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.StreamHandler()  # Log to terminal only
-    ]
-)
-logger = logging.getLogger(__name__)
-
-logger.info("Script started: Checking environment variables")
-api_id = os.getenv("API_ID", "24066461")
-api_hash = os.getenv("API_HASH", "04d2e7ce7a20d9737960e6a69b736b4a")
-phone_number = os.getenv("PHONE_NUMBER", "+61404319634")
-password = "AirJordan1!"  # Hardcoded 2FA password
-source_chat = "@bitfootpings"
-target_chat = "@BITFOOTCAPARSER"
-phanes_bot = "@PhanesGoldBot"
-
-logger.info(f"API_ID: {'set' if api_id else 'not set'}")
-logger.info(f"API_HASH: {'set' if api_hash else 'not set'}")
-logger.info(f"PHONE_NUMBER: {'set' if phone_number else 'not set'}")
-logger.info(f"PASSWORD: {'set' if password else 'not set'}")
-
+# === Telegram credentials from environment variables ===
+api_id = int(os.getenv('TELEGRAM_API_ID', '24066461'))
+api_hash = os.getenv('TELEGRAM_API_HASH', '04d2e7ce7a20d9737960e6a69b736b4a')
+phone_number = os.getenv('TELEGRAM_PHONE', '+61404319634')
 client = TelegramClient("bitfoot_scraper", api_id, api_hash)
+password = "AirJordan1!"
 
-async def resolve_chat(client, chat_id):
-    logger.info(f"Attempting to resolve chat: {chat_id}")
-    try:
-        entity = await client.get_input_entity(chat_id)
-        logger.info(f"Resolved chat: {chat_id}")
-        return entity
-    except ValueError as e:
-        logger.error(f"Failed to resolve chat {chat_id}: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Error resolving chat {chat_id}: {e}")
-        return None
-
-@client.on(events.NewMessage(chats=source_chat))
+# === Logging + Forwarding ===
+@client.on(events.NewMessage(chats=["bitfootpings"]))
 async def forward(event):
     try:
         msg = event.message
-        msg_text = msg.raw_text or ""
-        logger.info(f"Processing message from {source_chat}: {msg_text[:50]}...")
-        contracts = re.findall(r'[1-9A-HJ-NP-Za-km-z]{32,44}', msg_text)
-        unique_contracts = list(dict.fromkeys(contracts))
+        msg_text = msg.raw_text
         
+        print("🟢 NEW MESSAGE")
+        print(f"📅 Time: {msg.date}")
+        print(f"📨 From: {msg.chat.username or msg.chat.id}")
+        print(f"📦 Type: {'Text' if msg.text else 'Non-text'}")
+        print(f"📝 Content: {msg.text if msg.text else '[Non-text content]'}")
+        
+        # Extract all Solana contract addresses
+        contracts = re.findall(r'\b[1-9A-HJ-NP-Za-km-z]{32,44}\b', msg_text)
+        
+        # Remove duplicates while preserving order
+        unique_contracts = list(dict.fromkeys(contracts))
+
         if unique_contracts:
             for contract in unique_contracts:
+                await client.send_message("BITFOOTCAPARSER", f"✅ **CA Detected:**\n\n`{contract}`")
+                print(f"✅ Sent contract: {contract}")
                 try:
-                    await client.send_message(target_chat, f"**✅CA Detected:**\n\n`{contract}`")
-                    logger.info(f"CA Detected: {contract}")
-                except ChatWriteForbiddenError:
-                    logger.error(f"Cannot send to {target_chat}: No write permission")
-                except TypeNotFoundError as e:
-                    logger.error(f"TypeNotFoundError sending contract {contract}: {e}. Skipping.")
+                    with open("log.txt", "a", encoding="utf-8") as f:
+                        f.write(
+                            f"\n[{msg.date}] From: {msg.chat.username or msg.chat.id} → Contract: {contract}\n"
+                        )
                 except Exception as e:
-                    logger.error(f"Error sending contract {contract}: {e}")
+                    print(f"❌ Logging error: {e}")
+            print("-" * 40)
         else:
-            logger.info("No CA found")
-    except TypeNotFoundError as e:
-        logger.error(f"TypeNotFoundError processing message: {e}. Skipping.")
-    except FloodWaitError as e:
-        logger.error(f"Flood wait: Waiting {e.seconds}s")
-        await asyncio.sleep(e.seconds)
+            print("❌ Skipped: No Solana address found.\n" + "-" * 40)
     except Exception as e:
-        logger.error(f"Message error: {e}")
-
-@client.on(events.NewMessage(chats=target_chat, from_users=phanes_bot))
-async def log_phanes_response(event):
-    try:
-        msg = event.message
-        msg_text = msg.raw_text or ""
-        logger.info(f"Raw Phanes response: {msg_text}")
-        if msg_text:
-            pattern = r'([\w\s]+)\s+\(\$(\w+)\).*?([1-9A-HJ-NP-Za-km-z]{32,44}).*?([\d.]+)h.*?([\d.]+)K.*?USD:\s*\$([\d.₄]+)\s*\(([-+]?[\d.]+)%\).*?MC:\s*\$([\d.KM]+).*?Vol:\s*\$([\d.KM]+).*?LP:\s*\$([\d.KM]+).*?Sup:\s*([\dB/]+).*?1H:\s*([-+]?[\d.]+)%.*?🅑\s*([\d.K]+)\s*Ⓢ\s*([\d.K]+).*?ATH:\s*\$([\d.KM]+)\s*\(([-+]?[\d.]+)%\s*/\s*(\d+)m\).*?Freshies:\s*([\d.]+)%\s*1D\s*\|\s*([\d.]+)%\s*7D.*?Top 10:\s*([\d.]+)%\s*\|\s*([\d.K]+).*?TH:\s*([\d.\s|]+).*?Dev Sold:\s*(🟢|🔴).*?Dex Paid:\s*(🟢|🔴)'
-            match = re.search(pattern, msg_text, re.DOTALL)
-            if match:
-                token_name, ticker, contract, age, views, usd, usd_change, mc, vol, lp, sup, change_1h, buyers, sellers, ath, ath_change, ath_time, freshies_1d, freshies_7d, top10_pct, top10_holders, th, dev_sold, dex_paid = match.groups()
-                dev_sold = "Yes" if dev_sold == "🟢" else "No"
-                dex_paid = "Yes" if dex_paid == "🟢" else "No"
-                formatted_response = (
-                    f"{token_name} (${ticker}) #?\n"
-                    f"├ {contract}\n"
-                    f"└ #SOL (Raydium) | {age}h | {views}K Token Stats\n"
-                    f" ├ USD:  ${usd} ({usd_change}%)\n"
-                    f" ├ MC:   ${mc}\n"
-                    f" ├ Vol:  ${vol}\n"
-                    f" ├ LP:   ${lp}\n"
-                    f" ├ Sup:  {sup}\n"
-                    f" ├ 1H:   {change_1h}% 🅑 {buyers} Ⓢ {sellers}\n"
-                    f" └ ATH:  ${ath} ({ath_change}% / {ath_time}m) Security\n"
-                    f" ├ Freshies: {freshies_1d}% 1D | {freshies_7d}% 7D\n"
-                    f" ├ Top 10:   {top10_pct}% | {top10_holders} (total)\n"
-                    f" ├ TH:       {th}\n"
-                    f" ├ Dev Sold: {dev_sold}\n"
-                    f" └ Dex Paid: {dex_paid}"
-                )
-                logger.info(f"Formatted Phanes response: {formatted_response}")
-            else:
-                logger.info(f"No matching Phanes response format")
-    except TypeNotFoundError as e:
-        logger.error(f"TypeNotFoundError processing Phanes response: {e}. Skipping.")
-    except Exception as e:
-        logger.error(f"Error processing Phanes response: {e}")
-
+        print(f"❌ Error processing message: {e}")
+# === Flask for keep-alive ===
+app = Flask(__name__)
+@app.route('/')
+def home():
+    return "✅ Bitfoot bot is alive!"
+@app.route('/health')
+def health():
+    return {"status": "healthy", "bot": "running"}
+def run_flask():
+    port = int(os.getenv('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
+# === Async main ===
 async def main():
     try:
-        logger.info("Starting client")
-        if not phone_number:
-            logger.error("PHONE_NUMBER not set")
-            return
-        logger.info(f"Attempting login with phone: {phone_number}")
-        try:
-            await client.start(phone=phone_number, password=password)
-        except EOFError:
-            logger.error("EOF error: Cannot prompt for login code in non-interactive environment")
-            return
-        except Exception as e:
-            logger.error(f"Login error: {e}")
-            return
-        logger.info("Client started")
-        me = await client.get_me()
-        logger.info(f"Authenticated as: {me.username or me.phone}")
-        
-        for chat in [source_chat, target_chat]:
-            entity = await resolve_chat(client, chat)
-            if not entity:
-                logger.error(f"Cannot proceed: Failed to access chat {chat}")
-                return
-        
-        logger.info(f"Forwarding started: {source_chat} -> {target_chat}")
-        logger.info(f"Listening for Phanes responses from: {phanes_bot}")
+        await client.start(phone=phone_number)
+        print("📡 Forwarding started: @bitfootpings → @BITFOOTCAPARSER")
         await client.run_until_disconnected()
-    except SessionPasswordNeededError:
-        logger.error("2FA required. Set correct password")
-        return
-    except FloodWaitError as e:
-        logger.error(f"Flood wait: Waiting {e.seconds}s")
-        await asyncio.sleep(e.seconds)
-    except RPCError as e:
-        logger.error(f"Telegram error: {e}")
     except Exception as e:
-        logger.error(f"Bot error: {e}")
-    finally:
-        await client.disconnect()
-        logger.info("Client disconnected")
-
+        print(f"❌ Bot error: {e}")
+# === Start Flask + Telethon ===
 if __name__ == "__main__":
-    try:
-        if "--send-log" in sys.argv:
-            logger.info("Manual log file send disabled (logging to file removed)")
-        else:
-            logger.info("Starting Bitfoot Scraper")
-            asyncio.run(main())
-    except Exception as e:
-        logger.error(f"Main script error: {e}")
+    print("🚀 Starting Bitfoot Telegram Bot...")
+    threading.Thread(target=run_flask, daemon=True).start()
+    asyncio.run(main())
