@@ -32,7 +32,7 @@ api_hash = os.getenv("API_HASH", "04d2e7ce7a20d9737960e6a69b736b4a")
 phone_number = os.getenv("PHONE_NUMBER")
 chat_id = "@bitfootpings"
 
-client = TelegramClient("/tmp/bitfoot_scraper", api_id, api_hash)
+client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
 async def resolve_chat(client, chat_id):
     try:
@@ -78,7 +78,11 @@ async def main():
             logger.error("PHONE_NUMBER not set")
             return
         logger.info(f"Attempting login with phone: {phone_number}")
-        await client.start(phone=phone_number, password=os.getenv("PASSWORD"))
+        try:
+            await client.start(phone=phone_number, password=os.getenv("PASSWORD"))
+        except EOFError:
+            logger.error("EOF error: Cannot prompt for login code in non-interactive environment")
+            return
         logger.info("Client started")
         me = await client.get_me()
         logger.info(f"Authenticated as: {me.username or me.phone}")
