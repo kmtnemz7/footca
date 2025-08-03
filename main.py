@@ -58,14 +58,14 @@ async def print_group_id(event):
 #            
 #            # Send the file and capture the message object
 #            sent_message = await client.send_file(
-#                -1001234567890,  # Replace with your real group ID
+#                -1002735951382,  # Replace with your real group ID
 #                "phanes_stats_log.txt",
 #                caption="📦 Phanes log file (last 6 hours)"
 #            )
 #            print("📤 Log file sent.")
 #
 #            # Pin the sent message
-#            await client.pin_message(-1001234567890, sent_message)
+#            await client.pin_message(-1002735951382, sent_message)
 #            print("📌 Message pinned.")
 #
 #        except Exception as e:
