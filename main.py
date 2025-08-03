@@ -39,16 +39,13 @@ async def handle(event):
         cutoff_index = full_text.find("DEF")
         trimmed_text = full_text[:cutoff_index].strip()
 
-        safe_entities = [
-            e for e in msg.entities or []
-            if e.offset < cutoff_index
-        ]
-
         await client.send_message(
             "zeropingphane",
             trimmed_text,
-            formatting_entities=safe_entities
+            parse_mode="md"  # or "MarkdownV2" if needed
         )
+    else:
+        return
 
 # === Async main ===
 async def main():
