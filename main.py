@@ -30,6 +30,38 @@ async def forward(event):
     except Exception as e:
         print(f"❌ Error processing message: {e}")
 
+#Filter and send back PHANES MESSAGES
+
+@client.on(events.NewMessage(chats=BACKENDZEROPINGxc_vy))
+async def handle(event):
+    if not event.sender or event.sender.username != "PhanesGoldBot":
+        return
+
+    msg = event.message
+    if not msg.text:
+        return
+
+    full_text = msg.text
+    if "DEF" in full_text:
+        cutoff_index = full_text.find("DEF")
+        trimmed_text = full_text[:cutoff_index].strip()
+
+        # Filter entities that fall within trimmed range
+        safe_entities = [
+            e for e in msg.entities or []
+            if e.offset < cutoff_index
+        ]
+
+        await client.send_message(
+            BACKENDZEROPINGxc_zy,
+            trimmed_text,
+            formatting_entities=safe_entities
+        )
+        print("✅ Sent trimmed message with formatting")
+    else:
+        print("⚠️ Skipped: 'DEF' not found")
+
+
 # === Async main ===
 async def main():
     try:
