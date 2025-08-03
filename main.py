@@ -3,6 +3,7 @@ from telethon import TelegramClient, events
 import threading
 import asyncio
 import re
+from flask import Flask
 
 # === Telegram credentials from environment variables ===
 api_id = int(os.getenv('TELEGRAM_API_ID', '24066461'))
