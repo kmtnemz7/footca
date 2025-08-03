@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 logger.info("Script started: Checking environment variables")
 api_id = os.getenv("API_ID", "24066461")
 api_hash = os.getenv("API_HASH", "04d2e7ce7a20d9737960e6a69b736b4a")
-phone_number = "+61404319634"  
+phone_number = "+61404319634"
+password = "AirJordan1!" 
 source_chat = "@bitfootpings"
 target_chat = "@BITFOOTCAPARSER"
 phanes_bot = "@PhanesGoldBot"
@@ -29,8 +30,9 @@ phanes_bot = "@PhanesGoldBot"
 logger.info(f"API_ID: {'set' if api_id else 'not set'}")
 logger.info(f"API_HASH: {'set' if api_hash else 'not set'}")
 logger.info(f"PHONE_NUMBER: {'set' if phone_number else 'not set'}")
+logger.info(f"PASSWORD: {'set' if password else 'not set'}")
 
-client = TelegramClient("bitfoot_scraper_local", api_id, api_hash)  # Unique session name
+client = TelegramClient("bitfoot_scraper_local", api_id, api_hash)
 
 async def resolve_chat(client, chat_id):
     logger.info(f"Attempting to resolve chat: {chat_id}")
@@ -49,7 +51,7 @@ async def send_log_file():
     while True:
         try:
             if os.path.exists(log_file) and os.path.getsize(log_file) > 0:
-                await client.send_file(target_chat, log_file, caption="✅\n**SUCCESSFULLY LOGGED DATA")
+                await client.send_file(target_chat, log_file, caption="Phanes Responses")
                 logger.info(f"Sent log file to {target_chat}")
             else:
                 logger.info("Log file empty or missing, skipping send")
@@ -62,7 +64,7 @@ async def send_log_file():
 async def status_message():
     while True:
         try:
-            await client.send_message(target_chat, "**🔃 Logging calls...**")
+            await client.send_message(target_chat, "🔃 Logging calls...")
             logger.info(f"Sent status message to {target_chat}")
         except ChatWriteForbiddenError:
             logger.error(f"Cannot send status message to {target_chat}: No write permission")
@@ -84,7 +86,7 @@ async def forward(event):
         if unique_contracts:
             for contract in unique_contracts:
                 try:
-                    await client.send_message(target_chat, f"**CA Detected:**\n\n`{contract}`")
+                    await client.send_message(target_chat, f"CA Detected:\n{contract}")
                     logger.info(f"CA Detected: {contract}")
                 except ChatWriteForbiddenError:
                     logger.error(f"Cannot send to {target_chat}: No write permission")
@@ -152,7 +154,7 @@ async def main():
             return
         logger.info(f"Attempting login with phone: {phone_number}")
         try:
-            await client.start(phone=phone_number, password=os.getenv("PASSWORD"))
+            await client.start(phone=phone_number, password=password)
         except EOFError:
             logger.error("EOF error: Cannot prompt for login code in non-interactive environment")
             return
@@ -175,7 +177,7 @@ async def main():
         asyncio.create_task(status_message())
         await client.run_until_disconnected()
     except SessionPasswordNeededError:
-        logger.error("2FA required. Set PASSWORD env var")
+        logger.error("2FA required. Set PASSWORD env var or hardcoded password")
         return
     except FloodWaitError as e:
         logger.error(f"Flood wait: Waiting {e.seconds}s")
