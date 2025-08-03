@@ -32,7 +32,7 @@ async def forward(event):
 
 #Filter and send back PHANES MESSAGES
 
-@client.on(events.NewMessage(chats=BACKENDZEROPINGxc_vy))
+@client.on(events.NewMessage(chats="BACKENDZEROPINGxc_vy"))
 async def handle(event):
     if not event.sender or event.sender.username != "PhanesGoldBot":
         return
