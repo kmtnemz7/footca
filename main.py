@@ -15,7 +15,6 @@ async def forward(event):
         text = msg.raw_text
 
         if not text or "🔎" not in text:
-            print("⚠️ Skipped: No deep scan info.\n" + "-" * 40)
             return
 
         # Cut message at the first occurrence of 🔎
@@ -23,12 +22,8 @@ async def forward(event):
 
         if trimmed:
             await client.send_message("BACKENDZEROPINGxc_vy", trimmed, parse_mode="Markdown")
-            print("✅ Forwarded trimmed message\n" + "-" * 40)
-        else:
-            print("⚠️ Skipped: Trimmed message was empty\n" + "-" * 40)
-
     except Exception as e:
-        print(f"❌ Error processing message: {e}")
+        pass
 
 #Filter and send back PHANES MESSAGES
 
@@ -44,14 +39,16 @@ async def handle(event):
         cutoff_index = full_text.find("DEF")
         trimmed_text = full_text[:cutoff_index].strip()
 
+        safe_entities = [
+            e for e in msg.entities or []
+            if e.offset < cutoff_index
+        ]
+
         await client.send_message(
             "zeropingphane",
             trimmed_text,
-            parse_mode="md"  # or "MarkdownV2" if needed
+            formatting_entities=safe_entities
         )
-        print("✅ Sent trimmed message with markdown")
-    else:
-        print("⚠️ Skipped: 'DEF' not found")
 
 # === Async main ===
 async def main():
