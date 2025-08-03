@@ -13,21 +13,27 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler(log_file, mode="a", encoding="utf-8")
+        logging.StreamHandler()  # Log to terminal only
     ]
 )
 logger = logging.getLogger(__name__)
 
+logger.info("Script started: Checking environment variables")
 api_id = os.getenv("API_ID", "24066461")
 api_hash = os.getenv("API_HASH", "04d2e7ce7a20d9737960e6a69b736b4a")
-phone_number = os.getenv("PHONE_NUMBER", "+61404319634")
+phone_number = "+61404319634"  
 source_chat = "@bitfootpings"
 target_chat = "@BITFOOTCAPARSER"
 phanes_bot = "@PhanesGoldBot"
 
-client = TelegramClient("bitfoot_scraper", api_id, api_hash)
+logger.info(f"API_ID: {'set' if api_id else 'not set'}")
+logger.info(f"API_HASH: {'set' if api_hash else 'not set'}")
+logger.info(f"PHONE_NUMBER: {'set' if phone_number else 'not set'}")
+
+client = TelegramClient("bitfoot_scraper_local", api_id, api_hash)  # Unique session name
 
 async def resolve_chat(client, chat_id):
+    logger.info(f"Attempting to resolve chat: {chat_id}")
     try:
         entity = await client.get_input_entity(chat_id)
         logger.info(f"Resolved chat: {chat_id}")
@@ -43,7 +49,7 @@ async def send_log_file():
     while True:
         try:
             if os.path.exists(log_file) and os.path.getsize(log_file) > 0:
-                await client.send_file(target_chat, log_file, caption="Phanes Responses")
+                await client.send_file(target_chat, log_file, caption="✅\n**SUCCESSFULLY LOGGED DATA")
                 logger.info(f"Sent log file to {target_chat}")
             else:
                 logger.info("Log file empty or missing, skipping send")
@@ -56,7 +62,7 @@ async def send_log_file():
 async def status_message():
     while True:
         try:
-            await client.send_message(target_chat, "🔃 Logging calls...")
+            await client.send_message(target_chat, "**🔃 Logging calls...**")
             logger.info(f"Sent status message to {target_chat}")
         except ChatWriteForbiddenError:
             logger.error(f"Cannot send status message to {target_chat}: No write permission")
@@ -71,13 +77,14 @@ async def forward(event):
     try:
         msg = event.message
         msg_text = msg.raw_text or ""
+        logger.info(f"Processing message from {source_chat}: {msg_text[:50]}...")
         contracts = re.findall(r'[1-9A-HJ-NP-Za-km-z]{32,44}', msg_text)
         unique_contracts = list(dict.fromkeys(contracts))
         
         if unique_contracts:
             for contract in unique_contracts:
                 try:
-                    await client.send_message(target_chat, f"CA Detected:\n{contract}")
+                    await client.send_message(target_chat, f"**CA Detected:**\n\n`{contract}`")
                     logger.info(f"CA Detected: {contract}")
                 except ChatWriteForbiddenError:
                     logger.error(f"Cannot send to {target_chat}: No write permission")
@@ -85,6 +92,8 @@ async def forward(event):
                     logger.error(f"TypeNotFoundError sending contract {contract}: {e}. Skipping.")
                 except Exception as e:
                     logger.error(f"Error sending contract {contract}: {e}")
+        else:
+            logger.info("No CA found")
     except TypeNotFoundError as e:
         logger.error(f"TypeNotFoundError processing message: {e}. Skipping.")
     except FloodWaitError as e:
@@ -98,16 +107,16 @@ async def log_phanes_response(event):
     try:
         msg = event.message
         msg_text = msg.raw_text or ""
+        logger.info(f"Raw Phanes response: {msg_text[:100]}...")
         if msg_text:
-            # Extract key information using regex
-            pattern = r'([\w\s]+)\s+\(\$([\w]+)\)\s+#(\d+)\s*\n├\s*([1-9A-HJ-NP-Za-km-z]{32,44})\n└\s*#SOL\s*\(Raydium\)\s*\|\s*([\d.]+)h\s*\|\s*([\d.]+)K\s*Token Stats\n\s*├\s*USD:\s*\$([\d.₄]+)\s*\(([-+]?[\d.]+)%\)\n\s*├\s*MC:\s*\$([\d.KM]+)\n\s*├\s*Vol:\s*\$([\d.KM]+)\n\s*├\s*LP:\s*\$([\d.KM]+)\n\s*├\s*Sup:\s*([\dB/]+)\n\s*├\s*1H:\s*([-+]?[\d.]+)%\s*🅑\s*(\d+)\s*Ⓢ\s*(\d+)\n\s*└\s*ATH:\s*\$([\d.KM]+)\s*\(([-+]?[\d.]+)%\s*/\s*(\d+)m\)\s*Security\n\s*├\s*Freshies:\s*([\d.]+)%\s*1D\s*\|\s*([\d.]+)%\s*7D\n\s*├\s*Top 10:\s*([\d.]+)%\s*\|\s*(\d+)\s*\(total\)\n\s*├\s*TH:\s*([\d.\s|]+)\n\s*├\s*Dev Sold:\s*(🟢|🔴)\s*\[\]\n\s*└\s*Dex Paid:\s*(🟢|🔴)'
-            match = re.search(pattern, msg_text)
+            pattern = r'([\w\s]+)\s+\(\$([\w]+)\).*?([1-9A-HJ-NP-Za-km-z]{32,44}).*?([\d.]+)h\s*\|\s*([\d.]+)K.*?USD:\s*\$([\d.₄]+)\s*\(([-+]?[\d.]+)%\).*?MC:\s*\$([\d.KM]+).*?Vol:\s*\$([\d.KM]+).*?LP:\s*\$([\d.KM]+).*?Sup:\s*([\dB/]+).*?1H:\s*([-+]?[\d.]+)%\s*🅑\s*(\d+)\s*Ⓢ\s*(\d+).*?ATH:\s*\$([\d.KM]+)\s*\(([-+]?[\d.]+)%\s*/\s*(\d+)m\).*?Freshies:\s*([\d.]+)%\s*1D\s*\|\s*([\d.]+)%\s*7D.*?Top 10:\s*([\d.]+)%\s*\|\s*(\d+).*?TH:\s*([\d.\s|]+).*?Dev Sold:\s*(🟢|🔴).*?Dex Paid:\s*(🟢|🔴)'
+            match = re.search(pattern, msg_text, re.DOTALL)
             if match:
-                token_name, ticker, rank, contract, age, views, usd, usd_change, mc, vol, lp, sup, change_1h, buyers, sellers, ath, ath_change, ath_time, freshies_1d, freshies_7d, top10_pct, top10_holders, th, dev_sold, dex_paid = match.groups()
+                token_name, ticker, contract, age, views, usd, usd_change, mc, vol, lp, sup, change_1h, buyers, sellers, ath, ath_change, ath_time, freshies_1d, freshies_7d, top10_pct, top10_holders, th, dev_sold, dex_paid = match.groups()
                 dev_sold = "Yes" if dev_sold == "🟢" else "No"
                 dex_paid = "Yes" if dex_paid == "🟢" else "No"
                 formatted_response = (
-                    f"{token_name} (${ticker}) #{rank}\n"
+                    f"{token_name} (${ticker}) #?\n"
                     f"├ {contract}\n"
                     f"└ #SOL (Raydium) | {age}h | {views}K Token Stats\n"
                     f" ├ USD:  ${usd} ({usd_change}%)\n"
@@ -123,11 +132,13 @@ async def log_phanes_response(event):
                     f" ├ Dev Sold: {dev_sold}\n"
                     f" └ Dex Paid: {dex_paid}"
                 )
-                logger.info(f"Phanes response: {formatted_response}")
+                logger.info(f"Formatted Phanes response: {formatted_response}")
                 with open(log_file, "a", encoding="utf-8") as f:
                     f.write(f"[{msg.date}] Phanes Response:\n{formatted_response}\n\n")
             else:
-                logger.info("No matching Phanes response format found")
+                logger.info(f"No matching Phanes response format, logging raw response")
+                with open(log_file, "a", encoding="utf-8") as f:
+                    f.write(f"[{msg.date}] Phanes Raw Response:\n{msg_text}\n\n")
     except TypeNotFoundError as e:
         logger.error(f"TypeNotFoundError processing Phanes response: {e}. Skipping.")
     except Exception as e:
@@ -145,6 +156,9 @@ async def main():
         except EOFError:
             logger.error("EOF error: Cannot prompt for login code in non-interactive environment")
             return
+        except Exception as e:
+            logger.error(f"Login error: {e}")
+            return
         logger.info("Client started")
         me = await client.get_me()
         logger.info(f"Authenticated as: {me.username or me.phone}")
@@ -155,12 +169,14 @@ async def main():
                 logger.error(f"Cannot proceed: Failed to access chat {chat}")
                 return
         
-        logger.info(f"Forwarding started: {source_chat} → {target_chat}")
+        logger.info(f"Forwarding started: {source_chat} -> {target_chat}")
+        logger.info(f"Listening for Phanes responses from: {phanes_bot}")
         asyncio.create_task(send_log_file())
         asyncio.create_task(status_message())
         await client.run_until_disconnected()
     except SessionPasswordNeededError:
         logger.error("2FA required. Set PASSWORD env var")
+        return
     except FloodWaitError as e:
         logger.error(f"Flood wait: Waiting {e.seconds}s")
         await asyncio.sleep(e.seconds)
@@ -173,5 +189,8 @@ async def main():
         logger.info("Client disconnected")
 
 if __name__ == "__main__":
-    logger.info("Starting Bitfoot Scraper")
-    asyncio.run(main())
+    try:
+        logger.info("Starting Bitfoot Scraper")
+        asyncio.run(main())
+    except Exception as e:
+        logger.error(f"Main script error: {e}")
