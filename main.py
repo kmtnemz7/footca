@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 logger.info("Script started: Checking environment variables")
 api_id = os.getenv("API_ID", "24066461")
 api_hash = os.getenv("API_HASH", "04d2e7ce7a20d9737960e6a69b736b4a")
-phone_number = "+61404319634"
-password = "AirJordan1!" 
+phone_number = os.getenv("PHONE_NUMBER", "+61404319634")
+password = os.getenv("PASSWORD")
 source_chat = "@bitfootpings"
 target_chat = "@BITFOOTCAPARSER"
 phanes_bot = "@PhanesGoldBot"
@@ -32,7 +32,7 @@ logger.info(f"API_HASH: {'set' if api_hash else 'not set'}")
 logger.info(f"PHONE_NUMBER: {'set' if phone_number else 'not set'}")
 logger.info(f"PASSWORD: {'set' if password else 'not set'}")
 
-client = TelegramClient("bitfoot_scraper_local", api_id, api_hash)
+client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
 async def resolve_chat(client, chat_id):
     logger.info(f"Attempting to resolve chat: {chat_id}")
@@ -64,7 +64,7 @@ async def send_log_file():
 async def status_message():
     while True:
         try:
-            await client.send_message(target_chat, "**🔃 Logging calls...**")
+            await client.send_message(target_chat, "🔃 Logging calls...")
             logger.info(f"Sent status message to {target_chat}")
         except ChatWriteForbiddenError:
             logger.error(f"Cannot send status message to {target_chat}: No write permission")
@@ -86,8 +86,10 @@ async def forward(event):
         if unique_contracts:
             for contract in unique_contracts:
                 try:
-                    await client.send_message(target_chat, f"**🟢 CA Detected:**\n\n`{contract}`")
+                    await client.send_message(target_chat, f"CA Detected:\n{contract}")
                     logger.info(f"CA Detected: {contract}")
+                    with open(log_file, "a", encoding="utf-8") as f:
+                        f.write(f"[{msg.date}] Forwarded CA: {contract}\n\n")
                 except ChatWriteForbiddenError:
                     logger.error(f"Cannot send to {target_chat}: No write permission")
                 except TypeNotFoundError as e:
@@ -111,8 +113,7 @@ async def log_phanes_response(event):
         msg_text = msg.raw_text or ""
         logger.info(f"Raw Phanes response: {msg_text}")
         if msg_text:
-            # Broad regex to detect messages with a Solana address and key fields
-            pattern = r'([\w\s]+)\s+\(\$(\w+)\).*?([1-9A-HJ-NP-Za-km-z]{32,44}).*?([\d.]+)h.*?([\d.]+)K.*?USD:\s*\$([\d.₄]+)\s*\(([-+]?[\d.]+)%\).*?MC:\s*\$([\d.KM]+).*?Vol:\s*\$([\d.KM]+).*?LP:\s*\$([\d.KM]+).*?Sup:\s*([\dB/]+).*?1H:\s*([-+]?[\d.]+)%.*?🅑\s*(\d+)\s*Ⓢ\s*(\d+).*?ATH:\s*\$([\d.KM]+)\s*\(([-+]?[\d.]+)%\s*/\s*(\d+)m\).*?Freshies:\s*([\d.]+)%\s*1D\s*\|\s*([\d.]+)%\s*7D.*?Top 10:\s*([\d.]+)%\s*\|\s*(\d+).*?TH:\s*([\d.\s|]+).*?Dev Sold:\s*(🟢|🔴).*?Dex Paid:\s*(🟢|🔴)'
+            pattern = r'([\w\s]+)\s+\(\$(\w+)\).*?([1-9A-HJ-NP-Za-km-z]{32,44}).*?([\d.]+)h.*?([\d.]+)K.*?USD:\s*\$([\d.₄]+)\s*\(([-+]?[\d.]+)%\).*?MC:\s*\$([\d.KM]+).*?Vol:\s*\$([\d.KM]+).*?LP:\s*\$([\d.KM]+).*?Sup:\s*([\dB/]+).*?1H:\s*([-+]?[\d.]+)%.*?🅑\s*([\d.K]+)\s*Ⓢ\s*([\d.K]+).*?ATH:\s*\$([\d.KM]+)\s*\(([-+]?[\d.]+)%\s*/\s*(\d+)m\).*?Freshies:\s*([\d.]+)%\s*1D\s*\|\s*([\d.]+)%\s*7D.*?Top 10:\s*([\d.]+)%\s*\|\s*([\d.K]+).*?TH:\s*([\d.\s|]+).*?Dev Sold:\s*(🟢|🔴).*?Dex Paid:\s*(🟢|🔴)'
             match = re.search(pattern, msg_text, re.DOTALL)
             if match:
                 token_name, ticker, contract, age, views, usd, usd_change, mc, vol, lp, sup, change_1h, buyers, sellers, ath, ath_change, ath_time, freshies_1d, freshies_7d, top10_pct, top10_holders, th, dev_sold, dex_paid = match.groups()
@@ -178,7 +179,7 @@ async def main():
         asyncio.create_task(status_message())
         await client.run_until_disconnected()
     except SessionPasswordNeededError:
-        logger.error("2FA required. Set PASSWORD env var or hardcoded password")
+        logger.error("2FA required. Set PASSWORD env var")
         return
     except FloodWaitError as e:
         logger.error(f"Flood wait: Waiting {e.seconds}s")
@@ -193,7 +194,19 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        logger.info("Starting Bitfoot Scraper")
-        asyncio.run(main())
+        if "--send-log" in sys.argv:
+            async def manual_send():
+                logger.info("Manual log file send triggered")
+                if os.path.exists(log_file) and os.path.getsize(log_file) > 0:
+                    await client.start(phone=phone_number, password=password)
+                    await client.send_file(target_chat, log_file, caption="Phanes Responses (Manual Send)")
+                    logger.info(f"Manually sent log file to {target_chat}")
+                    await client.disconnect()
+                else:
+                    logger.info("Log file empty or missing, skipping manual send")
+            asyncio.run(manual_send())
+        else:
+            logger.info("Starting Bitfoot Scraper")
+            asyncio.run(main())
     except Exception as e:
         logger.error(f"Main script error: {e}")
