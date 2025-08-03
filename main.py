@@ -1,14 +1,10 @@
 import os
-from telethon import TelegramClient, events
-from flask import Flask
-import threading
 import asyncio
 import re
+from telethon import TelegramClient, events
 
-# === Telegram credentials from environment variables ===
-api_id = int(os.getenv('TELEGRAM_API_ID', '24066461'))
-api_hash = os.getenv('TELEGRAM_API_HASH', '04d2e7ce7a20d9737960e6a69b736b4a')
-phone_number = os.getenv('TELEGRAM_PHONE', '+61404319634')
+api_id = int(os.getenv('TELEGRAM_API_ID'))
+api_hash = os.getenv('TELEGRAM_API_HASH')
 
 client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
@@ -54,23 +50,6 @@ async def forward(event):
 @client.on(events.NewMessage(chats="BITFOOTCAPARSER"))
 async def print_group_id(event):
     print(f"📍 Group ID: {event.chat_id}")
-
-
-
-# === Flask for keep-alive ===
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "✅ Bitfoot bot is alive!"
-
-@app.route('/health')
-def health():
-    return {"status": "healthy", "bot": "running"}
-
-def run_flask():
-    port = int(os.getenv('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
 # ==== Send log file ====
 #async def send_log_file_periodically():
 #    while True:
@@ -95,7 +74,7 @@ def run_flask():
 # === Async main ===
 async def main():
     try:
-        await client.start(phone=phone_number)
+        await client.start()
         print("📡 Forwarding started: @bitfootpings → @BITFOOTCAPARSER")
         await client.run_until_disconnected()
     except Exception as e:
@@ -104,5 +83,4 @@ async def main():
 # === Start Flask + Telethon ===
 if __name__ == "__main__":
     print("🚀 Starting Bitfoot Telegram Bot...")
-    threading.Thread(target=run_flask, daemon=True).start()
     asyncio.run(main())
