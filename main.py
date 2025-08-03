@@ -47,9 +47,7 @@ async def forward(event):
         print(f"❌ Error processing message: {e}")
 #_____LOGGING PHANES IN .TXT
 
-@client.on(events.NewMessage(chats="BITFOOTCAPARSER"))
-async def print_group_id(event):
-    print(f"📍 Group ID: {event.chat_id}")
+
 # ==== Send log file ====
 #async def send_log_file_periodically():
 #    while True:
