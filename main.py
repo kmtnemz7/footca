@@ -5,7 +5,7 @@ import logging
 from telethon import TelegramClient, events
 from telethon.errors import FloodWaitError, SessionPasswordNeededError, RPCError
 
-# Ensure /tmp directory for logging (Render allows writes to /tmp)
+# Ensure /tmp directory for logging
 log_dir = "/tmp"
 os.makedirs(log_dir, exist_ok=True)
 log_file = "/tmp/log.txt"
@@ -20,6 +20,12 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Log environment variables for debugging (excluding sensitive values)
+logger.info(f"API_ID set: {'API_ID' in os.environ}")
+logger.info(f"API_HASH set: {'API_HASH' in os.environ}")
+logger.info(f"PHONE_NUMBER set: {'PHONE_NUMBER' in os.environ}")
+logger.info(f"PASSWORD set: {'PASSWORD' in os.environ}")
 
 api_id = os.getenv("API_ID", "24066461")
 api_hash = os.getenv("API_HASH", "04d2e7ce7a20d9737960e6a69b736b4a")
@@ -58,6 +64,7 @@ async def main():
         if not phone_number:
             logger.error("PHONE_NUMBER not set")
             return
+        logger.info(f"Attempting login with phone: {phone_number}")
         await client.start(phone=phone_number, password=os.getenv("PASSWORD"))
         logger.info("Client started")
         me = await client.get_me()
