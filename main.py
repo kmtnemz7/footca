@@ -109,9 +109,10 @@ async def log_phanes_response(event):
     try:
         msg = event.message
         msg_text = msg.raw_text or ""
-        logger.info(f"Raw Phanes response: {msg_text[:100]}...")
+        logger.info(f"Raw Phanes response: {msg_text}")
         if msg_text:
-            pattern = r'([\w\s]+)\s+\(\$([\w]+)\).*?([1-9A-HJ-NP-Za-km-z]{32,44}).*?([\d.]+)h\s*\|\s*([\d.]+)K.*?USD:\s*\$([\d.₄]+)\s*\(([-+]?[\d.]+)%\).*?MC:\s*\$([\d.KM]+).*?Vol:\s*\$([\d.KM]+).*?LP:\s*\$([\d.KM]+).*?Sup:\s*([\dB/]+).*?1H:\s*([-+]?[\d.]+)%\s*🅑\s*(\d+)\s*Ⓢ\s*(\d+).*?ATH:\s*\$([\d.KM]+)\s*\(([-+]?[\d.]+)%\s*/\s*(\d+)m\).*?Freshies:\s*([\d.]+)%\s*1D\s*\|\s*([\d.]+)%\s*7D.*?Top 10:\s*([\d.]+)%\s*\|\s*(\d+).*?TH:\s*([\d.\s|]+).*?Dev Sold:\s*(🟢|🔴).*?Dex Paid:\s*(🟢|🔴)'
+            # Broad regex to detect messages with a Solana address and key fields
+            pattern = r'([\w\s]+)\s+\(\$(\w+)\).*?([1-9A-HJ-NP-Za-km-z]{32,44}).*?([\d.]+)h.*?([\d.]+)K.*?USD:\s*\$([\d.₄]+)\s*\(([-+]?[\d.]+)%\).*?MC:\s*\$([\d.KM]+).*?Vol:\s*\$([\d.KM]+).*?LP:\s*\$([\d.KM]+).*?Sup:\s*([\dB/]+).*?1H:\s*([-+]?[\d.]+)%.*?🅑\s*(\d+)\s*Ⓢ\s*(\d+).*?ATH:\s*\$([\d.KM]+)\s*\(([-+]?[\d.]+)%\s*/\s*(\d+)m\).*?Freshies:\s*([\d.]+)%\s*1D\s*\|\s*([\d.]+)%\s*7D.*?Top 10:\s*([\d.]+)%\s*\|\s*(\d+).*?TH:\s*([\d.\s|]+).*?Dev Sold:\s*(🟢|🔴).*?Dex Paid:\s*(🟢|🔴)'
             match = re.search(pattern, msg_text, re.DOTALL)
             if match:
                 token_name, ticker, contract, age, views, usd, usd_change, mc, vol, lp, sup, change_1h, buyers, sellers, ath, ath_change, ath_time, freshies_1d, freshies_7d, top10_pct, top10_holders, th, dev_sold, dex_paid = match.groups()
