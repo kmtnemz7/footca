@@ -58,6 +58,11 @@ async def send_log_file():
             logger.error(f"Error sending log file: {e}")
         await asyncio.sleep(600)  # Send every 10 minutes
 
+async def heartbeat():
+    while True:
+        logger.info("Heartbeat: Scraper is running")
+        await asyncio.sleep(300)  # Log every 5 minutes
+
 @client.on(events.NewMessage(chats=chat_id))
 async def forward(event):
     try:
@@ -114,6 +119,7 @@ async def main():
         
         logger.info("Forwarding started: @bitfootpings → @BITFOOTCAPARSER")
         asyncio.create_task(send_log_file())
+        asyncio.create_task(heartbeat())
         await client.run_until_disconnected()
     except SessionPasswordNeededError:
         logger.error("2FA required. Set PASSWORD env var")
