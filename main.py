@@ -3,14 +3,12 @@ import asyncio
 import re
 import logging
 from telethon import TelegramClient, events
-from telethon.errors import FloodWaitError, SessionPasswordNeededError, RPCError, ChatWriteForbiddenError
+from telethon.errors import FloodWaitError, SessionPasswordNeededError, RPCError, ChatWriteForbiddenError, TypeNotFoundError
 
-# Ensure /tmp directory
 log_dir = "/tmp"
 os.makedirs(log_dir, exist_ok=True)
 log_file = "/tmp/log.txt"
 
-# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -21,7 +19,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Log environment variables
 logger.info(f"API_ID set: {'API_ID' in os.environ}")
 logger.info(f"API_HASH set: {'API_HASH' in os.environ}")
 logger.info(f"PHONE_NUMBER set: {'PHONE_NUMBER' in os.environ}")
@@ -54,14 +51,16 @@ async def send_log_file():
                 logger.info("Sent log file to @BITFOOTCAPARSER")
             else:
                 logger.info("Log file empty or missing, skipping send")
+        except TypeNotFoundError as e:
+            logger.error(f"TypeNotFoundError sending log file: {e}. Skipping.")
         except Exception as e:
             logger.error(f"Error sending log file: {e}")
-        await asyncio.sleep(600)  # Send every 10 minutes
+        await asyncio.sleep(600)
 
 async def heartbeat():
     while True:
         logger.info("Heartbeat: Scraper is running")
-        await asyncio.sleep(300)  # Log every 5 minutes
+        await asyncio.sleep(300)
 
 @client.on(events.NewMessage(chats=chat_id))
 async def forward(event):
@@ -84,11 +83,15 @@ async def forward(event):
                         f.write(f"\n[{msg.date}] From: {msg.chat.username or msg.chat.id} → Contract: {contract}\n")
                 except ChatWriteForbiddenError:
                     logger.error("Cannot send to @BITFOOTCAPARSER: No write permission")
+                except TypeNotFoundError as e:
+                    logger.error(f"TypeNotFoundError sending contract {contract}: {e}. Skipping.")
                 except Exception as e:
                     logger.error(f"Error sending contract {contract}: {e}")
             logger.info("-" * 40)
         else:
             logger.info("Skipped: No Solana address found")
+    except TypeNotFoundError as e:
+        logger.error(f"TypeNotFoundError processing message: {e}. Skipping.")
     except FloodWaitError as e:
         logger.error(f"Flood wait: Waiting {e.seconds}s")
         await asyncio.sleep(e.seconds)
@@ -111,7 +114,6 @@ async def main():
         me = await client.get_me()
         logger.info(f"Authenticated as: {me.username or me.phone}")
         
-        # Verify chat access
         entity = await resolve_chat(client, chat_id)
         if not entity:
             logger.error(f"Cannot proceed: Failed to access chat {chat_id}")
