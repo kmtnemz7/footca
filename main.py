@@ -4,100 +4,110 @@ import asyncio
 import re
 import logging
 
-# === Configure logging to /tmp/log.txt ===
+# Configure logging to /tmp/log.txt
 logging.basicConfig(filename='/tmp/log.txt', level=logging.INFO, format='%(asctime)s - %(message)s')
 
-# === Telegram credentials from environment variables ===
+# Telegram credentials from environment variables
 api_id = int(os.getenv('TELEGRAM_API_ID', '24066461'))
 api_hash = os.getenv('TELEGRAM_API_HASH', '04d2e7ce7a20d9737960e6a69b736b4a')
 phone_number = os.getenv('TELEGRAM_PHONE', '+61404319634')
-password = "AirJordan1!"  # For 2FA, if needed
-client = TelegramClient("bitfoot_scraper", api_id, api_hash)
+password = os.getenv('TELEGRAM_PASSWORD', 'AirJordan1!')  # For 2FA, if needed
 
-# === Function to extract Markdown text with hyperlinks ===
-def get_markdown_text(message):
+client = TelegramClient('bitfoot_scraper', api_id, api_hash)
 
-    if not message.text:
+# Function to extract and format message before 🔎
+def format_message(message):
+    if not message.text or '🔎' not in message.text:
         return None
     
-    # Split at '🔎' to get the part before
-    text_parts = message.text.split("🔎")
-    if len(text_parts) < 2:
+    # Get raw text before 🔎
+    raw_text = message.text.split('🔎')[0].strip()
+    if not raw_text:
         return None
-    
-    text = text_parts[0].strip()
-    if not text:
+
+    # Split lines for processing
+    lines = raw_text.split('\n')
+    if len(lines) < 2:
         return None
-    
-    # Get message entities (e.g., URLs, bold, etc.)
-    entities = message.entities or []
-    if not entities:
-        return text  # No formatting, return plain text
-    
-    # Convert entities to Markdown
-    markdown_text = ""
-    last_offset = 0
-    for entity in entities:
-        start = entity.offset
-        end = start + entity.length
-        # Add text before the entity
-        markdown_text += text[last_offset:start]
-        entity_text = text[start:end]
-        
-        # Handle URL entities
-        if entity.__class__.__name__ == "MessageEntityTextUrl":
-            markdown_text += f"[{entity_text}]({entity.url})"
+
+    # Extract Solana address (first line after 💊)
+    solana_address_pattern = r'[1-9A-HJ-NP-Za-km-z]{32,44}'
+    match = re.search(solana_address_pattern, lines[0])
+    if not match:
+        return None
+    address = match.group(0)
+
+    # Initialize formatted message
+    formatted_lines = [f'💊 {address}']
+
+    # Extract token name and Solscan URL from the second line (┌)
+    token_line = lines[1].strip()
+    token_match = re.match(r'┌(.+?)\s*\(([^)]+)\)\s*\((https://solscan\.io/token/[^)]+)\)', token_line)
+    if token_match:
+        token_name, symbol, solscan_url = token_match.groups()
+        formatted_lines.append(f'┌[{token_name} ({symbol})]({solscan_url})')
+    else:
+        formatted_lines.append(token_line)  # Fallback to raw line if parsing fails
+
+    # Process remaining lines until TH
+    th_start = None
+    for i, line in enumerate(lines[2:], 2):
+        if line.startswith('└TH:'):
+            th_start = i
+            break
+        formatted_lines.append(line)
+
+    # Process TH field with multiple hyperlinks
+    if th_start is not None:
+        th_line = lines[th_start].strip()
+        th_values = re.findall(r'(\d+\.\d+)\s*\((https://solscan\.io/account/[^)]+)\)', th_line)
+        if th_values:
+            th_formatted = '└TH: ' + '|'.join(f'[{value}]({url})' for value, url in th_values)
+            formatted_lines.append(th_formatted)
         else:
-            markdown_text += entity_text  # Preserve non-URL entities as plain text
-        
-        last_offset = end
-    
-    # Add remaining text after the last entity
-    markdown_text += text[last_offset:]
-    return markdown_text
+            formatted_lines.append(th_line)  # Fallback to raw TH line
 
-# === Event handler for bitfootpings -> BACKENDZEROPINGxc_vy ===
-@client.on(events.NewMessage(chats=["bitfootpings"]))
+    return '\n'.join(formatted_lines)
+
+@client.on(events.NewMessage(chats=['bitfootpings']))
 async def forward(event):
     try:
         msg = event.message
-        markdown_text = get_markdown_text(msg)
-
-        if not markdown_text:
-            print("⚠️ Skipped: No deep scan info or empty text.\n" + "-" * 40)
-            logging.info("Skipped: No deep scan info or empty text.")
+        formatted_text = format_message(msg)
+        if not formatted_text:
+            print('⚠️ Skipped: No deep scan info or empty text.\n' + '-' * 40)
+            logging.info('Skipped: No deep scan info or empty text.')
             return
 
-        # Detect Solana address (optional, for GMGNAI_bot integration)
+        # Detect Solana address for logging/GMGNAI_bot
         solana_address_pattern = r'[1-9A-HJ-NP-Za-km-z]{32,44}'
-        match = re.search(solana_address_pattern, markdown_text)
+        match = re.search(solana_address_pattern, formatted_text)
         if match:
             address = match.group(0)
-            print(f"✅ Found Solana Address: {address}")
-            logging.info(f"Detected Solana Address: {address}")
+            print(f'✅ Found Solana Address: {address}')
+            logging.info(f'Detected Solana Address: {address}')
             # Optional: Send to GMGNAI_bot
-            # await client.send_message("GMGNAI_bot", f"New Solana CA: {address}")
+            # await client.send_message('GMGNAI_bot', f'New Solana CA: {address}')
 
-        # Forward the Markdown-formatted message
-        await client.send_message("BACKENDZEROPINGxc_vy", markdown_text, parse_mode="Markdown")
-        print(f"✅ Forwarded message to BACKENDZEROPINGxc_vy:\n{markdown_text}\n" + "-" * 40)
-        logging.info(f"Forwarded to BACKENDZEROPINGxc_vy: {markdown_text}")
+        # Forward the formatted message
+        await client.send_message('BACKENDZEROPINGxc_vy', formatted_text, parse_mode='Markdown')
+        print(f'✅ Forwarded message to BACKENDZEROPINGxc_vy:\n{formatted_text}\n' + '-' * 40)
+        logging.info(f'Forwarded to BACKENDZEROPINGxc_vy: {formatted_text}')
 
     except Exception as e:
-        print(f"❌ Error processing message: {e}")
-        logging.error(f"Error processing message: {e}")
+        print(f'❌ Error processing message: {e}')
+        logging.error(f'Error processing message: {e}')
 
-# === Async main ===
 async def main():
     try:
         await client.start(phone=phone_number, password=password)
-        print("📡 Scraper started: @bitfootpings → @BACKENDZEROPINGxc_vy")
-        logging.info("Scraper started")
+        print('📡 Scraper started: @bitfootpings → @BACKENDZEROPINGxc_vy')
+        logging.info('Scraper started')
         await client.run_until_disconnected()
     except Exception as e:
-        print(f"❌ Bot error: {e}")
-        logging.error(f"Bot error: {e}")
+        print(f'❌ Bot error: {e}')
+        logging.error(f'Bot error: {e}')
 
-if __name__ == "__main__":
-    print("🚀 Starting Bitfoot Scraper...")
+if __name__ == '__main__':
+    print('🚀 Starting Bitfoot Scraper...')
     asyncio.run(main())
