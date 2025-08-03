@@ -49,16 +49,14 @@ async def resolve_chat(client, chat_id):
 async def send_log_file():
     while True:
         try:
-            with open(log_file, "r", encoding="utf-8") as f:
-                log_content = f.read()
-            if log_content:
-                await client.send_message("BITFOOTCAPARSER", f"Log file contents:\n{log_content[:4000]}")
-                logger.info("Sent log file contents to @BITFOOTCAPARSER")
+            if os.path.exists(log_file) and os.path.getsize(log_file) > 0:
+                await client.send_file("BITFOOTCAPARSER", log_file, caption="Log file")
+                logger.info("Sent log file to @BITFOOTCAPARSER")
             else:
-                logger.info("Log file empty, skipping send")
+                logger.info("Log file empty or missing, skipping send")
         except Exception as e:
             logger.error(f"Error sending log file: {e}")
-        await asyncio.sleep(600)
+        await asyncio.sleep(600)  # Send every 10 minutes
 
 @client.on(events.NewMessage(chats=chat_id))
 async def forward(event):
@@ -75,7 +73,7 @@ async def forward(event):
         if unique_contracts:
             for contract in unique_contracts:
                 try:
-                    await client.send_message("BITFOOTCAPARSER", f"**CA Detected:**\n\n`{contract}`")
+                    await client.send_message("BITFOOTCAPARSER", f"CA Detected:\n{contract}")
                     logger.info(f"Sent contract: {contract}")
                     with open(log_file, "a", encoding="utf-8") as f:
                         f.write(f"\n[{msg.date}] From: {msg.chat.username or msg.chat.id} → Contract: {contract}\n")
