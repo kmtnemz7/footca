@@ -6,10 +6,6 @@ import sys
 from telethon import TelegramClient, events
 from telethon.errors import FloodWaitError, SessionPasswordNeededError, RPCError, ChatWriteForbiddenError, TypeNotFoundError
 
-log_dir = "/tmp"
-os.makedirs(log_dir, exist_ok=True)
-log_file = "/tmp/log.txt"
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -23,7 +19,7 @@ logger.info("Script started: Checking environment variables")
 api_id = os.getenv("API_ID", "24066461")
 api_hash = os.getenv("API_HASH", "04d2e7ce7a20d9737960e6a69b736b4a")
 phone_number = os.getenv("PHONE_NUMBER", "+61404319634")
-password = "AirJordan1!"
+password = "AirJordan1!"  # Hardcoded 2FA password
 source_chat = "@bitfootpings"
 target_chat = "@BITFOOTCAPARSER"
 phanes_bot = "@PhanesGoldBot"
@@ -48,33 +44,6 @@ async def resolve_chat(client, chat_id):
         logger.error(f"Error resolving chat {chat_id}: {e}")
         return None
 
-async def send_log_file():
-    while True:
-        try:
-            if os.path.exists(log_file) and os.path.getsize(log_file) > 0:
-                await client.send_file(target_chat, log_file, caption="Phanes Responses")
-                logger.info(f"Sent log file to {target_chat}")
-            else:
-                logger.info("Log file empty or missing, skipping send")
-        except TypeNotFoundError as e:
-            logger.error(f"TypeNotFoundError sending log file: {e}. Skipping.")
-        except Exception as e:
-            logger.error(f"Error sending log file: {e}")
-        await asyncio.sleep(600)
-
-async def status_message():
-    while True:
-        try:
-            await client.send_message(target_chat, "🔃 Logging calls...")
-            logger.info(f"Sent status message to {target_chat}")
-        except ChatWriteForbiddenError:
-            logger.error(f"Cannot send status message to {target_chat}: No write permission")
-        except TypeNotFoundError as e:
-            logger.error(f"TypeNotFoundError sending status message: {e}. Skipping.")
-        except Exception as e:
-            logger.error(f"Error sending status message: {e}")
-        await asyncio.sleep(60)
-
 @client.on(events.NewMessage(chats=source_chat))
 async def forward(event):
     try:
@@ -87,10 +56,8 @@ async def forward(event):
         if unique_contracts:
             for contract in unique_contracts:
                 try:
-                    await client.send_message(target_chat, f"CA Detected:\n{contract}")
+                    await client.send_message(target_chat, f"**✅CA Detected:**\n\n`{contract}`")
                     logger.info(f"CA Detected: {contract}")
-                    with open(log_file, "a", encoding="utf-8") as f:
-                        f.write(f"[{msg.date}] Forwarded CA: {contract}\n\n")
                 except ChatWriteForbiddenError:
                     logger.error(f"Cannot send to {target_chat}: No write permission")
                 except TypeNotFoundError as e:
@@ -138,12 +105,8 @@ async def log_phanes_response(event):
                     f" └ Dex Paid: {dex_paid}"
                 )
                 logger.info(f"Formatted Phanes response: {formatted_response}")
-                with open(log_file, "a", encoding="utf-8") as f:
-                    f.write(f"[{msg.date}] Phanes Response:\n{formatted_response}\n\n")
             else:
-                logger.info(f"No matching Phanes response format, logging raw response")
-                with open(log_file, "a", encoding="utf-8") as f:
-                    f.write(f"[{msg.date}] Phanes Raw Response:\n{msg_text}\n\n")
+                logger.info(f"No matching Phanes response format")
     except TypeNotFoundError as e:
         logger.error(f"TypeNotFoundError processing Phanes response: {e}. Skipping.")
     except Exception as e:
@@ -176,11 +139,9 @@ async def main():
         
         logger.info(f"Forwarding started: {source_chat} -> {target_chat}")
         logger.info(f"Listening for Phanes responses from: {phanes_bot}")
-        asyncio.create_task(send_log_file())
-        asyncio.create_task(status_message())
         await client.run_until_disconnected()
     except SessionPasswordNeededError:
-        logger.error("2FA required. Set PASSWORD env var")
+        logger.error("2FA required. Set correct password")
         return
     except FloodWaitError as e:
         logger.error(f"Flood wait: Waiting {e.seconds}s")
@@ -196,16 +157,7 @@ async def main():
 if __name__ == "__main__":
     try:
         if "--send-log" in sys.argv:
-            async def manual_send():
-                logger.info("Manual log file send triggered")
-                if os.path.exists(log_file) and os.path.getsize(log_file) > 0:
-                    await client.start(phone=phone_number, password=password)
-                    await client.send_file(target_chat, log_file, caption="Phanes Responses (Manual Send)")
-                    logger.info(f"Manually sent log file to {target_chat}")
-                    await client.disconnect()
-                else:
-                    logger.info("Log file empty or missing, skipping manual send")
-            asyncio.run(manual_send())
+            logger.info("Manual log file send disabled (logging to file removed)")
         else:
             logger.info("Starting Bitfoot Scraper")
             asyncio.run(main())
