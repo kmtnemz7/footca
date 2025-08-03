@@ -10,7 +10,7 @@ logging.basicConfig(filename='/tmp/log.txt', level=logging.INFO, format='%(ascti
 # === Telegram credentials from environment variables ===
 api_id = int(os.getenv('TELEGRAM_API_ID', '24066461'))
 api_hash = os.getenv('TELEGRAM_API_HASH', '04d2e7ce7a20d9737960e6a69b736b4a')
-phone_number = os.getenv('TELEGRAM_PHONE', '+61404319634'))
+phone_number = os.getenv('TELEGRAM_PHONE', '+61404319634')
 password = "AirJordan1!"  # For 2FA, if needed
 client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
