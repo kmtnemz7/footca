@@ -1,9 +1,7 @@
 import os
 from telethon import TelegramClient, events
-import threading
 import asyncio
 import re
-from flask import Flask
 
 # === Telegram credentials from environment variables ===
 api_id = int(os.getenv('TELEGRAM_API_ID', '24066461'))
@@ -47,17 +45,7 @@ async def forward(event):
             print("❌ Skipped: No Solana address found.\n" + "-" * 40)
     except Exception as e:
         print(f"❌ Error processing message: {e}")
-# === Flask for keep-alive ===
-app = Flask(__name__)
-@app.route('/')
-def home():
-    return "✅ Bitfoot bot is alive!"
-@app.route('/health')
-def health():
-    return {"status": "healthy", "bot": "running"}
-def run_flask():
-    port = int(os.getenv('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
+
 # === Async main ===
 async def main():
     try:
@@ -66,8 +54,8 @@ async def main():
         await client.run_until_disconnected()
     except Exception as e:
         print(f"❌ Bot error: {e}")
-# === Start Flask + Telethon ===
+
+# === Start Telethon ===
 if __name__ == "__main__":
     print("🚀 Starting Bitfoot Telegram Bot...")
-    threading.Thread(target=run_flask, daemon=True).start()
     asyncio.run(main())
