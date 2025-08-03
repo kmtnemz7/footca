@@ -3,8 +3,8 @@ import asyncio
 import re
 from telethon import TelegramClient, events
 
-api_id = int(os.getenv('TELEGRAM_API_ID'))
-api_hash = os.getenv('TELEGRAM_API_HASH')
+api_id = 24066461
+api_hash = "04d2e7ce7a20d9737960e6a69b736b4a"
 
 client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
