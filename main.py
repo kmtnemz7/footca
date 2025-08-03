@@ -5,7 +5,7 @@ import logging
 from telethon import TelegramClient, events
 from telethon.errors import FloodWaitError, SessionPasswordNeededError, RPCError
 
-# Ensure /tmp directory for logging
+# Ensure /tmp directory
 log_dir = "/tmp"
 os.makedirs(log_dir, exist_ok=True)
 log_file = "/tmp/log.txt"
@@ -21,7 +21,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Log environment variables for debugging (excluding sensitive values)
+# Log environment variables
 logger.info(f"API_ID set: {'API_ID' in os.environ}")
 logger.info(f"API_HASH set: {'API_HASH' in os.environ}")
 logger.info(f"PHONE_NUMBER set: {'PHONE_NUMBER' in os.environ}")
@@ -30,10 +30,23 @@ logger.info(f"PASSWORD set: {'PASSWORD' in os.environ}")
 api_id = os.getenv("API_ID", "24066461")
 api_hash = os.getenv("API_HASH", "04d2e7ce7a20d9737960e6a69b736b4a")
 phone_number = os.getenv("PHONE_NUMBER")
+chat_id = "@bitfootpings"
 
-client = TelegramClient("bitfoot_scraper", api_id, api_hash)
+client = TelegramClient("/tmp/bitfoot_scraper", api_id, api_hash)
 
-@client.on(events.NewMessage(chats=["-1002389539807"]))
+async def resolve_chat(client, chat_id):
+    try:
+        entity = await client.get_input_entity(chat_id)
+        logger.info(f"Resolved chat: {chat_id}")
+        return entity
+    except ValueError as e:
+        logger.error(f"Failed to resolve chat {chat_id}: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Error resolving chat {chat_id}: {e}")
+        return None
+
+@client.on(events.NewMessage(chats=chat_id))
 async def forward(event):
     try:
         msg = event.message
@@ -69,7 +82,14 @@ async def main():
         logger.info("Client started")
         me = await client.get_me()
         logger.info(f"Authenticated as: {me.username or me.phone}")
-        logger.info("Forwarding started: -1002389539807 → @BITFOOTCAPARSER")
+        
+        # Verify chat access
+        entity = await resolve_chat(client, chat_id)
+        if not entity:
+            logger.error(f"Cannot proceed: Failed to access chat {chat_id}")
+            return
+        
+        logger.info("Forwarding started: @bitfootpings → @BITFOOTCAPARSER")
         await client.run_until_disconnected()
     except SessionPasswordNeededError:
         logger.error("2FA required. Set PASSWORD env var")
@@ -85,5 +105,5 @@ async def main():
         logger.info("Client disconnected")
 
 if __name__ == "__main__":
-    logger.info("Starting Bitfoot Bot")
+    logger.info("Starting Bitfoot Scraper")
     asyncio.run(main())
