@@ -2,6 +2,7 @@ import os
 import asyncio
 import re
 import logging
+import sys
 from telethon import TelegramClient, events
 from telethon.errors import FloodWaitError, SessionPasswordNeededError, RPCError, ChatWriteForbiddenError, TypeNotFoundError
 
