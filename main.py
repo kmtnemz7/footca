@@ -5,12 +5,18 @@ import logging
 from telethon import TelegramClient, events
 from telethon.errors import FloodWaitError, SessionPasswordNeededError, RPCError
 
+# Ensure /tmp directory for logging (Render allows writes to /tmp)
+log_dir = "/tmp"
+os.makedirs(log_dir, exist_ok=True)
+log_file = "/tmp/log.txt"
+
+# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler("/app/log.txt"),
-        logging.StreamHandler()
+        logging.StreamHandler(),
+        logging.FileHandler(log_file, mode="a", encoding="utf-8")
     ]
 )
 logger = logging.getLogger(__name__)
@@ -35,7 +41,7 @@ async def forward(event):
             for contract in unique_contracts:
                 await client.send_message("BITFOOTCAPARSER", f"CA Detected:\n{contract}")
                 logger.info(f"Sent contract: {contract}")
-                with open("/app/log.txt", "a", encoding="utf-8") as f:
+                with open(log_file, "a", encoding="utf-8") as f:
                     f.write(f"\n[{msg.date}] From: {msg.chat.username or msg.chat.id} → Contract: {contract}\n")
             logger.info("-" * 40)
         else:
