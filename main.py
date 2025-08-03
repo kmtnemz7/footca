@@ -49,6 +49,45 @@ async def forward(event):
             print("❌ Skipped: No Solana address found.\n" + "-" * 40)
     except Exception as e:
         print(f"❌ Error processing message: {e}")
+#_____LOGGING PHANES IN .TXT
+
+@client.on(events.NewMessage(chats="BITFOOTCAPARSER"))
+async def log_clean_token_stats(event):
+    msg_text = event.raw_text
+
+    # Check that the message includes both headers
+    if "📊 Token Stats" in msg_text and "🔒 Security" in msg_text:
+        try:
+            # Extract only the relevant lines from the message
+            lines = msg_text.splitlines()
+            capture = False
+            filtered_lines = []
+
+            for line in lines:
+                # Start capturing after this line
+                if line.startswith("📊 Token Stats"):
+                    capture = True
+
+                if capture:
+                    # Stop capturing if we hit a new section or empty
+                    if line.strip() == "":
+                        break
+                    # Remove markdown-like formatting (e.g., [text](link))
+                    clean_line = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', line)
+                    filtered_lines.append(clean_line)
+
+            # Save clean output
+            clean_output = "\n".join(filtered_lines)
+            with open("phanes_stats_log.txt", "a", encoding="utf-8") as f:
+                f.write("\n--- New Token Stats ---\n")
+                f.write(clean_output + "\n")
+                f.write("-" * 40 + "\n")
+            print("📥 Logged cleaned Phanes stats.")
+        
+        except Exception as e:
+            print(f"❌ Logging error: {e}")
+
+
 
 # === Flask for keep-alive ===
 app = Flask(__name__)
