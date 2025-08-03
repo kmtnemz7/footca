@@ -53,7 +53,7 @@ async def handle(event):
         ]
 
         await client.send_message(
-            BACKENDZEROPINGxc_vy,
+            zeropingphan,
             trimmed_text,
             formatting_entities=safe_entities
         )
