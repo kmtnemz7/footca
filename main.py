@@ -3,7 +3,7 @@ import asyncio
 import re
 import logging
 from telethon import TelegramClient, events
-from telethon.errors import FloodWaitError, SessionPasswordNeededError, RPCError
+from telethon.errors import FloodWaitError, SessionPasswordNeededError, RPCError, ChatWriteForbiddenError
 
 # Ensure /tmp directory
 log_dir = "/tmp"
@@ -46,22 +46,43 @@ async def resolve_chat(client, chat_id):
         logger.error(f"Error resolving chat {chat_id}: {e}")
         return None
 
+async def send_log_file():
+    while True:
+        try:
+            with open(log_file, "r", encoding="utf-8") as f:
+                log_content = f.read()
+            if log_content:
+                await client.send_message("BITFOOTCAPARSER", f"Log file contents:\n{log_content[:4000]}")
+                logger.info("Sent log file contents to @BITFOOTCAPARSER")
+            else:
+                logger.info("Log file empty, skipping send")
+        except Exception as e:
+            logger.error(f"Error sending log file: {e}")
+        await asyncio.sleep(600)
+
 @client.on(events.NewMessage(chats=chat_id))
 async def forward(event):
     try:
         msg = event.message
-        msg_text = msg.raw_text
-        logger.info(f"New message | Time: {msg.date} | From: {msg.chat.username or msg.chat.id} | Type: {'Text' if msg.text else 'Non-text'} | Content: {msg.text or '[Non-text]'}")
+        msg_text = msg.raw_text or ""
+        logger.info(f"New message | Time: {msg.date} | From: {msg.chat.username or msg.chat.id} | Type: {'Text' if msg.text else 'Non-text'} | Content: {msg_text}")
         
-        contracts = re.findall(r'\b[1-9A-HJ-NP-Za-km-z]{32,44}\b', msg_text)
+        contracts = re.findall(r'[1-9A-HJ-NP-Za-km-z]{32,44}', msg_text)
+        logger.info(f"Regex matches: {contracts}")
+        
         unique_contracts = list(dict.fromkeys(contracts))
         
         if unique_contracts:
             for contract in unique_contracts:
-                await client.send_message("BITFOOTCAPARSER", f"CA Detected:\n{contract}")
-                logger.info(f"Sent contract: {contract}")
-                with open(log_file, "a", encoding="utf-8") as f:
-                    f.write(f"\n[{msg.date}] From: {msg.chat.username or msg.chat.id} → Contract: {contract}\n")
+                try:
+                    await client.send_message("BITFOOTCAPARSER", f"**CA Detected:**\n\n`{contract}`")
+                    logger.info(f"Sent contract: {contract}")
+                    with open(log_file, "a", encoding="utf-8") as f:
+                        f.write(f"\n[{msg.date}] From: {msg.chat.username or msg.chat.id} → Contract: {contract}\n")
+                except ChatWriteForbiddenError:
+                    logger.error("Cannot send to @BITFOOTCAPARSER: No write permission")
+                except Exception as e:
+                    logger.error(f"Error sending contract {contract}: {e}")
             logger.info("-" * 40)
         else:
             logger.info("Skipped: No Solana address found")
@@ -94,6 +115,7 @@ async def main():
             return
         
         logger.info("Forwarding started: @bitfootpings → @BITFOOTCAPARSER")
+        asyncio.create_task(send_log_file())
         await client.run_until_disconnected()
     except SessionPasswordNeededError:
         logger.error("2FA required. Set PASSWORD env var")
