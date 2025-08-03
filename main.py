@@ -34,31 +34,22 @@ async def forward(event):
 
 @client.on(events.NewMessage(chats="BACKENDZEROPINGxc_vy"))
 async def handle(event):
-    # sender = await event.get_sender()
-    # if not sender or sender.username != "PhanesGoldBot":
-    #     return  # ❌ temporarily disable this check for debugging
-
     msg = event.message
     if not msg or not msg.text:
         return
 
     full_text = msg.text
+
     if "DEF" in full_text:
         cutoff_index = full_text.find("DEF")
         trimmed_text = full_text[:cutoff_index].strip()
 
-        safe_entities = [
-            e for e in msg.entities or []
-            if e.offset < cutoff_index
-        ]
-
         await client.send_message(
-            "zeropingphane",  # ✅ string, not variable
+            "zeropingphane",
             trimmed_text,
-            formatting_entities=safe_entities
+            parse_mode="md"  # or "MarkdownV2" if needed
         )
-
-        print("✅ Sent trimmed message with formatting")
+        print("✅ Sent trimmed message with markdown")
     else:
         print("⚠️ Skipped: 'DEF' not found")
 
