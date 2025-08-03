@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 api_id = os.getenv("API_ID", "24066461")
 api_hash = os.getenv("API_HASH", "04d2e7ce7a20d9737960e6a69b736b4a")
-phone_number = os.getenv("PHONE_NUMBER")
+phone_number = os.getenv("PHONE_NUMBER", "+61404319634")
 source_chat = "@bitfootpings"
 target_chat = "@BITFOOTCAPARSER"
 phanes_bot = "@PhanesGoldBot"
