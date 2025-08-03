@@ -16,10 +16,7 @@ client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
 # === Function to extract Markdown text with hyperlinks ===
 def get_markdown_text(message):
-    """
-    Extracts the message text with Markdown formatting, including hyperlinks, up to the '🔎' symbol.
-    Returns None if no text or '🔎' is not found.
-    """
+
     if not message.text:
         return None
     
