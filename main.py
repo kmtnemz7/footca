@@ -84,6 +84,25 @@ async def forward(event):
     except Exception as e:
         print("❌ Error:", e)
 
+@client.on(events.NewMessage(chats=["bitfootpings"]))
+async def detect_contract_address(event):
+    try:
+        text = event.message.raw_text
+
+        if not text:
+            return
+
+        # Regex for Solana contract addresses: Base58 (32 to 44 characters)
+        match = re.search(r'\b[1-9A-HJ-NP-Za-km-z]{32,44}\b', text)
+
+        if match:
+            contract_address = match.group(0)
+            await client.send_message("zeropingphane", f"🔍 **New CA detected:**\n\n`{contract_address}`", parse_mode="MarkdownV2")
+
+    except Exception as e:
+        print("❌ CA detection error:", e)
+
+
 #Filter and send back PHANES MESSAGES
 
 #@client.on(events.NewMessage(chats="BACKENDZEROPINGxc_vy"))
