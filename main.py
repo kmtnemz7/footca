@@ -20,14 +20,18 @@ async def forward(event):
         msg = event.message
         text = msg.raw_text
 
-        if not text or "🔎" not in text:
+        if not text:
+            print("⚠️ Skipped: No text in message.")
+            return
+        if "🔎" not in text:
+            print("⚠️ Skipped: '🔎' not in message.")
             return
 
-        # Keep everything ABOVE the 🔎
+        print("🟢 Parsing message...")
+
         trimmed = text.split("🔎")[0].strip()
         lines = trimmed.splitlines()
 
-        # Initialize
         token = name = usd = mc = vol = seen = dex = dex_paid = holder = th = "N/A"
 
         for line in lines:
@@ -53,7 +57,7 @@ async def forward(event):
             elif line.startswith("└TH:"):
                 th = line.split("TH:")[1].strip()
 
-        # Escape MarkdownV2 characters
+        # Escape
         token = mdv2_escape(token)
         name = mdv2_escape(name)
         usd = mdv2_escape(usd)
@@ -79,10 +83,11 @@ async def forward(event):
 
 *[🔼Quick trade on AXIOM\\!](https://axiom.trade/@kmtz)*"""
 
+        print("📤 Sending message to BACKENDZEROPINGxc_vy...")
         await client.send_message("BACKENDZEROPINGxc_vy", formatted, parse_mode="MarkdownV2")
 
     except Exception as e:
-        print("❌ Error:", e)
+        print("❌ Error forwarding:", e)
 
 @client.on(events.NewMessage(chats=["bitfootpings"]))
 async def detect_contract_address(event):
