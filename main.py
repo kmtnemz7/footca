@@ -27,26 +27,26 @@ async def forward(event):
 
 #Filter and send back PHANES MESSAGES
 
-@client.on(events.NewMessage(chats="BACKENDZEROPINGxc_vy"))
-async def handle(event):
-    msg = event.message
-    if not msg or not msg.text:
-        return
-
-    full_text = msg.text
-
-    if "DEF" in full_text:
-        cutoff_index = full_text.find("DEF")
-        trimmed_text = full_text[:cutoff_index].strip()
-
-        await client.send_message(
-            "zeropingphane",
-            trimmed_text,
-            parse_mode="md"  # or "MarkdownV2" if needed
-        )
-    else:
-        return
-
+#@client.on(events.NewMessage(chats="BACKENDZEROPINGxc_vy"))
+#async def handle(event):
+ #   msg = event.message
+  #  if not msg or not msg.text:
+   #     return
+#
+ #   full_text = msg.text
+#
+ #   if "DEF" in full_text:
+  #      cutoff_index = full_text.find("DEF")
+   #     trimmed_text = full_text[:cutoff_index].strip()
+#
+ #       await client.send_message(
+  #          "zeropingphane",
+   #         trimmed_text,
+    #        parse_mode="md"  # or "MarkdownV2" if needed
+     #   )
+    #else:
+     #   return
+#
 # === Async main ===
 async def main():
     try:
