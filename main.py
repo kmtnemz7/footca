@@ -8,6 +8,12 @@ api_hash = os.getenv('TELEGRAM_API_HASH', '04d2e7ce7a20d9737960e6a69b736b4a')
 phone_number = os.getenv('TELEGRAM_PHONE', '+61404319634')
 client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
+import re
+from telethon import events
+
+def mdv2_escape(text):
+    return re.sub(r'([_*\[\]()~`>#+=|{}.!\\-])', r'\\\1', str(text))
+
 @client.on(events.NewMessage(chats=["bitfootpings"]))
 async def forward(event):
     try:
@@ -17,16 +23,15 @@ async def forward(event):
         if not text or "🔎" not in text:
             return
 
-        # Trim above 🔎
+        # Keep everything ABOVE the 🔎
         trimmed = text.split("🔎")[0].strip()
         lines = trimmed.splitlines()
 
-        # Initialize default values
+        # Initialize
         token = name = usd = mc = vol = seen = dex = dex_paid = holder = th = "N/A"
 
         for line in lines:
             line = line.strip()
-
             if line.startswith("💊"):
                 token = line[2:].strip()
             elif line.startswith("┌"):
@@ -48,23 +53,37 @@ async def forward(event):
             elif line.startswith("└TH:"):
                 th = line.split("TH:")[1].strip()
 
-        # Custom format — change this however you want
-        formatted = f"""💊 **{name}**
+        # Escape MarkdownV2 characters
+        token = mdv2_escape(token)
+        name = mdv2_escape(name)
+        usd = mdv2_escape(usd)
+        mc = mdv2_escape(mc)
+        vol = mdv2_escape(vol)
+        seen = mdv2_escape(seen)
+        dex = mdv2_escape(dex)
+        dex_paid = mdv2_escape(dex_paid)
+        holder = mdv2_escape(holder)
+        th = mdv2_escape(th)
+
+        formatted = f"""💊 *{name}*
 📬 CA: `{token}`
 
-💵 **Price:** ${usd}  
-📈 **Market Cap:** {mc}  
-💧 **Volume:** {vol}  
-⏱️ **Last Seen:** {seen} ago
+💵 *Price:* ${usd}  
+📈 *Market Cap:* {mc}  
+💧 *Volume:* {vol}  
+⏱️ *Last Seen:* {seen} ago
 
-⚖️ **DEX:** {dex} | 💰 Paid: `{dex_paid}`  
-👥 **Holder Count:** {holder}  
-🔝 **Top Holders:** {th}"""
+⚖️ *DEX:* {dex} | 💰 Paid: `{dex_paid}`  
+👥 *Holder Count:* {holder}  
+🔝 *Top Holders:* {th}
 
-        await client.send_message("BACKENDZEROPINGxc_vy", formatted, parse_mode="Markdown")
+*[🔼Quick trade on AXIOM\\!](https://axiom.trade/@kmtz)*"""
+
+        await client.send_message("BACKENDZEROPINGxc_vy", formatted, parse_mode="MarkdownV2")
 
     except Exception as e:
-        pass
+        print("❌ Error:", e)
+
 #Filter and send back PHANES MESSAGES
 
 #@client.on(events.NewMessage(chats="BACKENDZEROPINGxc_vy"))
