@@ -49,15 +49,17 @@ async def forward(event):
                 th = line.split("TH:")[1].strip()
 
         # Custom format — change this however you want
-        formatted = f"""**{name}**
-`Token:` {token}
-`USD:` {usd}
-`MC:` {mc}
-`Volume:` {vol}
-`Seen:` {seen}
-`Dex:` {dex} | `Paid:` {dex_paid}
-`Holder:` {holder}
-`Top Holders:` {th}"""
+        formatted = f"""💊 **{name}**
+📬 CA: `{token}`
+
+💵 **Price:** ${usd}  
+📈 **Market Cap:** {mc}  
+💧 **Volume:** {vol}  
+⏱️ **Last Seen:** {seen} ago
+
+⚖️ **DEX:** {dex} | 💰 Paid: `{dex_paid}`  
+👥 **Holder Count:** {holder}  
+🔝 **Top Holders:** {th}"""
 
         await client.send_message("BACKENDZEROPINGxc_vy", formatted, parse_mode="Markdown")
 
