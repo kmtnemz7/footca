@@ -22,6 +22,7 @@ async def forward(event):
 
         if trimmed:
             await client.send_message("BACKENDZEROPINGxc_vy", trimmed, parse_mode="Markdown")
+            await client.send_message("zeropingphane", trimmed, parse_mode="Markdown")
     except Exception as e:
         pass
 
