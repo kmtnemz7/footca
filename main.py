@@ -28,29 +28,35 @@ async def forward(event):
 
 @client.on(events.NewMessage(chats=["zeropingphane"]))
 async def forward_lb_response(event):
-    if event.out:          # skip your own “/lb”
+    if event.out:                           # skip your own “/lb”
         return
 
+    # ── 1) forward ──────────────────────────────────────────────
     try:
-        # Forward and keep the real Message object
         fwd = await client.forward_messages("ZeroPingX", event.message)
-
-        # Telethon returns a list when you pass many; normalise it
-        if isinstance(fwd, list):
+        if isinstance(fwd, list):           # forward_messages may return a list
             fwd = fwd[0]
+    except Exception as err:                # network issues, etc.
+        print("❌ Forward failed:", err)
+        return                              # nothing to pin if forward failed
 
-        # ▸ 1-line bullet-proof pin (uses the message’s own helper)
-        await fwd.pin(notify=False)     # same as await client.pin_message(...)
+    # ── 2) pin with flood-wait handling ─────────────────────────
+    try:
+        await client.pin_message("ZeroPingX", fwd, notify=True)
 
-        # If you still prefer the long form, add a tiny pause first:
-        # await asyncio.sleep(0.3)
-        # await client.pin_message("ZeroPingX", fwd, notify=False)
+    except FloodWaitError as e:             # Telegram rate-limit
+        print(f"⏳ Must wait {e.seconds}s before pinning again")
+        await asyncio.sleep(e.seconds)      # wait the required time
 
-    except Exception as e:
-        print("❌ Pin failed:", e)
+        # optional single retry
+        try:
+            await client.pin_message("ZeroPingX", fwd, notify=True)
+        except FloodWaitError:
+            print("Still rate-limited; skipping this pin.")
 
-    # ── pin it (silent = no push-notification ping) ─────────
-    await client.pin_message("ZeroPingX", fwd, notify=True)
+    except Exception as err:                # any other pin failure
+        print("❌ Pin failed:", err)
+        
 # ── ③ background task that sends /lb once a minute ────────────────────────────
 async def ping_lb_every_minute():
     while True:
