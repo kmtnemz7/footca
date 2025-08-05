@@ -33,7 +33,12 @@ async def forward_lb_response(event):
         return
     # Forward *as-is* (not re-sending) to the target group
     await client.forward_messages("ZeroPingX", event.message)
+    # forward_messages can return a single Message or a list
+    if isinstance(fwd, list):
+        fwd = fwd[0]
 
+    # ── pin it (silent = no push-notification ping) ─────────
+    await client.pin_message("ZeroPingX", fwd, notify=False)
 # ── ③ background task that sends /lb once a minute ────────────────────────────
 async def ping_lb_every_minute():
     while True:
