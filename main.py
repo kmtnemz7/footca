@@ -28,17 +28,29 @@ async def forward(event):
 
 @client.on(events.NewMessage(chats=["zeropingphane"]))
 async def forward_lb_response(event):
-    # Ignore your own outgoing "/lb" command; keep only bot’s reply
-    if event.out:                # True == message you sent yourself
+    if event.out:          # skip your own “/lb”
         return
-    # Forward *as-is* (not re-sending) to the target group
-    await client.forward_messages("ZeroPingX", event.message)
-    # forward_messages can return a single Message or a list
-    if isinstance(fwd, list):
-        fwd = fwd[0]
+
+    try:
+        # Forward and keep the real Message object
+        fwd = await client.forward_messages("ZeroPingX", event.message)
+
+        # Telethon returns a list when you pass many; normalise it
+        if isinstance(fwd, list):
+            fwd = fwd[0]
+
+        # ▸ 1-line bullet-proof pin (uses the message’s own helper)
+        await fwd.pin(notify=False)     # same as await client.pin_message(...)
+
+        # If you still prefer the long form, add a tiny pause first:
+        # await asyncio.sleep(0.3)
+        # await client.pin_message("ZeroPingX", fwd, notify=False)
+
+    except Exception as e:
+        print("❌ Pin failed:", e)
 
     # ── pin it (silent = no push-notification ping) ─────────
-    await client.pin_message("ZeroPingX", fwd, notify=False)
+    await client.pin_message("ZeroPingX", fwd, notify=True)
 # ── ③ background task that sends /lb once a minute ────────────────────────────
 async def ping_lb_every_minute():
     while True:
