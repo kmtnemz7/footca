@@ -55,10 +55,11 @@ async def forward_lb_response(event):
 async def ping_lb_every_minute():
     while True:
         try:
-            await client.send_message("zeropingphane", "/lb")
+            await client.send_message("zeropingphane", "/lb 1d")
         except Exception as e:
             print("⚠️  failed to send /lb:", e)
-        await asyncio.sleep(60)           # 60 s = 1 min
+        await client.send_message("zeropingphane", "/lb 1d")
+        await asyncio.sleep(86_400)           # 1 day
 
 with client:
     client.loop.create_task(ping_lb_every_minute())
