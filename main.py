@@ -31,6 +31,10 @@ async def forward_lb_response(event):
     if event.out:                           # skip your own “/lb”
         return
 
+    text = (event.message.raw_text or "").lstrip()
+    if not text.startswith("🏆"):
+        return  
+
     # ── 1) forward ──────────────────────────────────────────────
     try:
         fwd = await client.forward_messages("ZeroPingX", event.message)
