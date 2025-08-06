@@ -7,6 +7,7 @@ api_id = int(os.getenv('TELEGRAM_API_ID', '25910242'))
 api_hash = os.getenv('TELEGRAM_API_HASH', '0fe4dfa487f9c9f333d7da2272c7e56b')
 phone_number = os.getenv('TELEGRAM_PHONE', '+61434973040')
 client = TelegramClient("bitfoot_scraper", api_id, api_hash)
+TARGET_CHATS = ["ZeroPingX", "ZeroPingstats"]
 
 @client.on(events.NewMessage(chats=["bitfootpings"]))
 async def forward(event):
@@ -28,47 +29,47 @@ async def forward(event):
 
 @client.on(events.NewMessage(chats=["zeropingphane"]))
 async def forward_lb_response(event):
-    if event.out:                           # skip your own “/lb”
+    if event.out:
         return
 
     text = (event.message.raw_text or "").lstrip()
     if not text.startswith("🏆"):
-        return  
+        return
 
-    # ── 1) forward ──────────────────────────────────────────────
-    try:
-        fwd = await client.forward_messages("ZeroPingX", event.message)
-        if isinstance(fwd, list):           # forward_messages may return a list
-            fwd = fwd[0]
-    except Exception as err:                # network issues, etc.
-        print("❌ Forward failed:", err)
-        return                              # nothing to pin if forward failed
-
-    # ── 2) pin with flood-wait handling ─────────────────────────
-    try:
-        await client.pin_message("ZeroPingX", fwd, notify=True)
-
-    except FloodWaitError as e:             # Telegram rate-limit
-        print(f"⏳ Must wait {e.seconds}s before pinning again")
-        await asyncio.sleep(e.seconds)      # wait the required time
-
-        # optional single retry
+    for dest in TARGET_CHATS:               # loop once per destination
+        # ── 1) forward ─────────────────────────────────────────
         try:
-            await client.pin_message("ZeroPingX", fwd, notify=True)
-        except FloodWaitError:
-            print("Still rate-limited; skipping this pin.")
+            fwd = await client.forward_messages(dest, event.message)
+            if isinstance(fwd, list):       # forward_messages may return a list
+                fwd = fwd[0]
+        except Exception as err:            # network issues, etc.
+            print(f"❌ Forward to {dest} failed:", err)
+            continue                        # skip pin if forward failed
 
-    except Exception as err:                # any other pin failure
-        print("❌ Pin failed:", err)
-        
-# ── ③ background task that sends /lb once a minute ────────────────────────────
+        # ── 2) pin with flood-wait handling ────────────────────
+        try:
+            await client.pin_message(dest, fwd, notify=True)
+
+        except FloodWaitError as e:         # Telegram rate-limit
+            print(f"⏳ Must wait {e.seconds}s before pinning in {dest}")
+            await asyncio.sleep(e.seconds)  # wait the required time
+            try:                            # optional single retry
+                await client.pin_message(dest, fwd, notify=True)
+            except FloodWaitError:
+                print(f"Still rate-limited in {dest}; skipping pin.")
+
+        except Exception as err:            # any other pin failure
+            print(f"❌ Pin in {dest} failed:", err)
+
+
+# ── ③ background task that sends /lb once a day ───────────────────────────────
 async def ping_lb_every_minute():
     while True:
         try:
             await client.send_message("zeropingphane", "/lb 1d")
         except Exception as e:
             print("⚠️  failed to send /lb:", e)
-        await asyncio.sleep(86400)           # 1 day
+        await asyncio.sleep(86400)          # 1 day
 
 with client:
     client.loop.create_task(ping_lb_every_minute())
