@@ -3,9 +3,9 @@ from telethon import TelegramClient, events
 import asyncio
 
 # === Telegram credentials from environment variables ===
-api_id = int(os.getenv('TELEGRAM_API_ID', '24066461'))
-api_hash = os.getenv('TELEGRAM_API_HASH', '04d2e7ce7a20d9737960e6a69b736b4a')
-phone_number = os.getenv('TELEGRAM_PHONE', '+61404319634')
+api_id = int(os.getenv('TELEGRAM_API_ID', '25910242'))
+api_hash = os.getenv('TELEGRAM_API_HASH', '0fe4dfa487f9c9f333d7da2272c7e56b')
+phone_number = os.getenv('TELEGRAM_PHONE', '+61434973040')
 client = TelegramClient("bitfoot_scraper", api_id, api_hash)
 
 @client.on(events.NewMessage(chats=["bitfootpings"]))
